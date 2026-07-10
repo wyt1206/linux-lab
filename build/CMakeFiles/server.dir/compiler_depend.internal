@@ -47,6 +47,7 @@ CMakeFiles/server.dir/src/server.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/arm/limits.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/arm/signal.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/arm/types.h
+ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/arpa/inet.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/adjacent_find.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/all_of.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/any_of.h
@@ -667,6 +668,8 @@ CMakeFiles/server.dir/src/server.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/malloc/_ptrcheck.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/math.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/net/net_kev.h
+ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/netinet/in.h
+ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/netinet6/in6.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/nl_types.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/pthread.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/pthread/pthread_impl.h
