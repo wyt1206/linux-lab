@@ -6,6 +6,54 @@
 #include <unistd.h>
 
 
+void handle_client(int client_fd)
+{
+    char buffer[1024];
+
+
+    while(true)
+    {
+        int n = recv(
+            client_fd,
+            buffer,
+            sizeof(buffer),
+            0
+        );
+
+
+        if(n <= 0)
+        {
+            std::cout 
+                << "Client disconnected\n";
+
+            break;
+        }
+
+
+        std::cout << "Received: ";
+
+        std::cout.write(
+            buffer,
+            n
+        );
+
+        std::cout << std::endl;
+
+
+        send(
+            client_fd,
+            buffer,
+            n,
+            0
+        );
+    }
+
+
+    close(client_fd);
+}
+
+
+
 int main()
 {
     int server_fd = socket(
@@ -33,61 +81,38 @@ int main()
 
 
     std::cout 
-        << "Listening...\n";
+        << "Server listening...\n";
 
 
-    sockaddr_in client_addr{};
-    socklen_t client_len = sizeof(client_addr);
-
-
-    int client_fd = accept(
-        server_fd,
-        (sockaddr*)&client_addr,
-        &client_len
-    );
-
-
-    std::cout 
-        << "Client connected\n";
-
-
-    char buffer[1024];
-
-
-    int n = recv(
-        client_fd,
-        buffer,
-        sizeof(buffer),
-        0
-    );
-
-
-    if (n > 0)
+    while(true)
     {
+        sockaddr_in client_addr{};
+        socklen_t client_len = sizeof(client_addr);
+
+
+        int client_fd = accept(
+            server_fd,
+            (sockaddr*)&client_addr,
+            &client_len
+        );
+
+
+        if(client_fd < 0)
+        {
+            perror("accept");
+            continue;
+        }
+
+
         std::cout 
-            << "Received: ";
-
-        std::cout.write(
-            buffer,
-            n
-        );
-
-        std::cout << std::endl;
+            << "New client connected\n";
 
 
-        send(
-            client_fd,
-            buffer,
-            n,
-            0
-        );
+        handle_client(client_fd);
     }
 
 
-    close(client_fd);
-
     close(server_fd);
-
 
     return 0;
 }
