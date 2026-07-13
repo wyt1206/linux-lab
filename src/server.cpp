@@ -1,50 +1,41 @@
 #include <iostream>
 #include <cstring>
 
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
 
 
-int main() {
-
-    // 1. 创建 socket
-    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (server_fd < 0) {
-        perror("socket");
-        return 1;
-    }
+int main()
+{
+    int server_fd = socket(
+        AF_INET,
+        SOCK_STREAM,
+        0
+    );
 
 
-    // 2. bind
     sockaddr_in server_addr{};
+
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(8080);
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
 
-    if (bind(server_fd,
-             (sockaddr*)&server_addr,
-             sizeof(server_addr)) < 0) {
-
-        perror("bind");
-        return 1;
-    }
+    bind(
+        server_fd,
+        (sockaddr*)&server_addr,
+        sizeof(server_addr)
+    );
 
 
-    // 3. listen
-    if (listen(server_fd, 128) < 0) {
-        perror("listen");
-        return 1;
-    }
+    listen(server_fd, 128);
 
 
-    std::cout << "Server listening on port 8080\n";
+    std::cout 
+        << "Listening...\n";
 
 
-    // 4. accept
     sockaddr_in client_addr{};
     socklen_t client_len = sizeof(client_addr);
 
@@ -56,19 +47,47 @@ int main() {
     );
 
 
-    if (client_fd < 0) {
-        perror("accept");
-        return 1;
+    std::cout 
+        << "Client connected\n";
+
+
+    char buffer[1024];
+
+
+    int n = recv(
+        client_fd,
+        buffer,
+        sizeof(buffer),
+        0
+    );
+
+
+    if (n > 0)
+    {
+        std::cout 
+            << "Received: ";
+
+        std::cout.write(
+            buffer,
+            n
+        );
+
+        std::cout << std::endl;
+
+
+        send(
+            client_fd,
+            buffer,
+            n,
+            0
+        );
     }
 
 
-    std::cout << "Client connected!\n";
-
-
-    // 后面就是 recv/send
-
     close(client_fd);
+
     close(server_fd);
+
 
     return 0;
 }
