@@ -1,4 +1,5 @@
 #include <iostream>
+#include <thread>
 #include <cstring>
 
 #include <sys/socket.h>
@@ -6,14 +7,22 @@
 #include <unistd.h>
 
 
+// 每个 client 的处理函数
 void handle_client(int client_fd)
 {
+    std::cout 
+        << "Client handler started. Thread id: "
+        << std::this_thread::get_id()
+        << std::endl;
+
+
     char buffer[1024];
 
 
-    while(true)
+    while (true)
     {
-        int n = recv(
+        // 从 client 接收数据
+        int bytes_received = recv(
             client_fd,
             buffer,
             sizeof(buffer),
@@ -21,10 +30,13 @@ void handle_client(int client_fd)
         );
 
 
-        if(n <= 0)
+        // client关闭连接
+        if (bytes_received <= 0)
         {
-            std::cout 
-                << "Client disconnected\n";
+            std::cout
+                << "Client disconnected. Thread id: "
+                << std::this_thread::get_id()
+                << std::endl;
 
             break;
         }
@@ -34,18 +46,27 @@ void handle_client(int client_fd)
 
         std::cout.write(
             buffer,
-            n
+            bytes_received
         );
 
         std::cout << std::endl;
 
 
-        send(
+
+        // echo 回 client
+        int bytes_sent = send(
             client_fd,
             buffer,
-            n,
+            bytes_received,
             0
         );
+
+
+        if (bytes_sent < 0)
+        {
+            perror("send");
+            break;
+        }
     }
 
 
@@ -56,6 +77,10 @@ void handle_client(int client_fd)
 
 int main()
 {
+    /*
+     * Step 1:
+     * 创建 socket
+     */
     int server_fd = socket(
         AF_INET,
         SOCK_STREAM,
@@ -63,31 +88,67 @@ int main()
     );
 
 
+    if (server_fd < 0)
+    {
+        perror("socket");
+        return 1;
+    }
+
+
+
+    /*
+     * Step 2:
+     * bind
+     */
     sockaddr_in server_addr{};
 
     server_addr.sin_family = AF_INET;
+
     server_addr.sin_port = htons(8080);
+
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
 
-    bind(
-        server_fd,
-        (sockaddr*)&server_addr,
-        sizeof(server_addr)
-    );
+    if (bind(
+            server_fd,
+            (sockaddr*)&server_addr,
+            sizeof(server_addr)
+        ) < 0)
+    {
+        perror("bind");
+        return 1;
+    }
 
 
-    listen(server_fd, 128);
+
+    /*
+     * Step 3:
+     * listen
+     */
+    if (listen(server_fd, 128) < 0)
+    {
+        perror("listen");
+        return 1;
+    }
 
 
-    std::cout 
-        << "Server listening...\n";
+    std::cout
+        << "Server listening on port 8080..."
+        << std::endl;
 
 
-    while(true)
+
+    /*
+     * Step 4:
+     * accept loop
+     */
+    while (true)
     {
         sockaddr_in client_addr{};
-        socklen_t client_len = sizeof(client_addr);
+
+        socklen_t client_len =
+            sizeof(client_addr);
+
 
 
         int client_fd = accept(
@@ -97,19 +158,35 @@ int main()
         );
 
 
-        if(client_fd < 0)
+        if (client_fd < 0)
         {
             perror("accept");
             continue;
         }
 
 
-        std::cout 
-            << "New client connected\n";
+        std::cout
+            << "New client connected!"
+            << std::endl;
 
 
-        handle_client(client_fd);
+
+        /*
+         * Step 7:
+         * 一个 client 一个 thread
+         */
+        std::thread client_thread(
+            handle_client,
+            client_fd
+        );
+
+
+        /*
+         * 让线程后台运行
+         */
+        client_thread.detach();
     }
+
 
 
     close(server_fd);
