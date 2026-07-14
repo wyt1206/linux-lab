@@ -1,12 +1,13 @@
 #ifndef THREADPOOL_H
 #define THREADPOOL_H
 
-
-#include <vector>
+#include <iostream>
 #include <thread>
+#include <vector>
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <functional>
 
 
 class ThreadPool
@@ -14,40 +15,35 @@ class ThreadPool
 
 public:
 
-    ThreadPool(int size);
-
+    ThreadPool(size_t numThreads);
 
     ~ThreadPool();
 
 
-    void submit(int client_fd);
-
-
-
-private:
-
-    void worker();
-
-
-    void handle_client(int client_fd);
-
+    void enqueue(std::function<void()> task);
 
 
 private:
 
+    // worker threads
     std::vector<std::thread> workers;
 
 
-    std::queue<int> tasks;
+    // task queue
+    std::queue<std::function<void()>> tasks;
 
 
-    std::mutex mutex;
+    // protect task queue
+    std::mutex queueMutex;
 
 
+    // notify workers
     std::condition_variable condition;
 
 
+    // stop flag
     bool stop;
+
 
 };
 

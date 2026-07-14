@@ -1,120 +1,97 @@
 #include "ThreadPool.h"
 
-#include <iostream>
-
-#include <sys/socket.h>
-#include <unistd.h>
 
 
-ThreadPool::ThreadPool(int size)
-    :
-      stop(false)
+ThreadPool::ThreadPool(size_t numThreads)
+    : stop(false)
 {
 
-    for(int i = 0; i < size; i++)
+    for(size_t i = 0; i < numThreads; i++)
     {
+
         workers.emplace_back(
-            &ThreadPool::worker,
-            this
-        );
-    }
 
-}
-
-
-
-void ThreadPool::worker()
-{
-
-    while(true)
-    {
-
-        int client_fd;
-
-
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-
-
-            condition.wait(
-                lock,
-                [this]()
-                {
-                    return stop || !tasks.empty();
-                }
-            );
-
-
-            if(stop && tasks.empty())
+            [this]()
             {
-                return;
+
+                while(true)
+                {
+
+                    std::function<void()> task;
+
+
+                    {
+                        std::unique_lock<std::mutex> lock(queueMutex);
+
+
+                        /*
+                         * 如果：
+                         * 1. stop == true
+                         * 或者
+                         * 2. queue里面有任务
+                         *
+                         * worker继续执行
+                         *
+                         * 否则睡眠
+                         */
+                        condition.wait(
+                            lock,
+                            [this]()
+                            {
+                                return stop || !tasks.empty();
+                            }
+                        );
+
+
+                        // thread pool shutdown
+                        if(stop && tasks.empty())
+                        {
+                            return;
+                        }
+
+
+                        // get task
+                        task = std::move(tasks.front());
+
+                        tasks.pop();
+
+                    }
+
+
+                    // execute task
+                    task();
+
+                }
+
             }
 
+        );
 
-            client_fd = tasks.front();
-
-            tasks.pop();
-
-        }
-
-
-        handle_client(client_fd);
     }
 
 }
 
 
 
-void ThreadPool::submit(int client_fd)
+void ThreadPool::enqueue(
+    std::function<void()> task
+)
 {
 
     {
-        std::lock_guard<std::mutex> lock(mutex);
+
+        std::lock_guard<std::mutex> lock(queueMutex);
 
 
-        tasks.push(client_fd);
+        tasks.push(
+            std::move(task)
+        );
+
     }
 
 
+    // wake one sleeping worker
     condition.notify_one();
-
-}
-
-
-
-void ThreadPool::handle_client(int client_fd)
-{
-
-    char buffer[1024];
-
-
-    while(true)
-    {
-
-        int n = recv(
-            client_fd,
-            buffer,
-            sizeof(buffer),
-            0
-        );
-
-
-        if(n <= 0)
-        {
-            break;
-        }
-
-
-        send(
-            client_fd,
-            buffer,
-            n,
-            0
-        );
-    }
-
-
-    close(client_fd);
 
 }
 
@@ -124,16 +101,20 @@ ThreadPool::~ThreadPool()
 {
 
     {
-        std::lock_guard<std::mutex> lock(mutex);
+
+        std::lock_guard<std::mutex> lock(queueMutex);
 
         stop = true;
+
     }
 
 
+    // wake all workers
     condition.notify_all();
 
 
 
+    // wait workers exit
     for(auto& worker : workers)
     {
         worker.join();
