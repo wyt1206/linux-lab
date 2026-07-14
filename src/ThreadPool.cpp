@@ -1,16 +1,15 @@
 #include "ThreadPool.h"
 
 
-
-ThreadPool::ThreadPool(size_t numThreads)
-    : stop(false)
+ThreadPool::ThreadPool(size_t thread_num)
+    :
+    stop(false)
 {
 
-    for(size_t i = 0; i < numThreads; i++)
+    for(size_t i = 0; i < thread_num; i++)
     {
 
         workers.emplace_back(
-
             [this]()
             {
 
@@ -21,19 +20,11 @@ ThreadPool::ThreadPool(size_t numThreads)
 
 
                     {
-                        std::unique_lock<std::mutex> lock(queueMutex);
+                        std::unique_lock<std::mutex> lock(
+                            queue_mutex
+                        );
 
 
-                        /*
-                         * 如果：
-                         * 1. stop == true
-                         * 或者
-                         * 2. queue里面有任务
-                         *
-                         * worker继续执行
-                         *
-                         * 否则睡眠
-                         */
                         condition.wait(
                             lock,
                             [this]()
@@ -43,28 +34,24 @@ ThreadPool::ThreadPool(size_t numThreads)
                         );
 
 
-                        // thread pool shutdown
                         if(stop && tasks.empty())
                         {
                             return;
                         }
 
 
-                        // get task
                         task = std::move(tasks.front());
 
                         tasks.pop();
-
                     }
 
 
-                    // execute task
+                    // 执行任务
                     task();
 
                 }
 
             }
-
         );
 
     }
@@ -79,18 +66,17 @@ void ThreadPool::enqueue(
 {
 
     {
-
-        std::lock_guard<std::mutex> lock(queueMutex);
+        std::lock_guard<std::mutex> lock(
+            queue_mutex
+        );
 
 
         tasks.push(
             std::move(task)
         );
-
     }
 
 
-    // wake one sleeping worker
     condition.notify_one();
 
 }
@@ -101,20 +87,17 @@ ThreadPool::~ThreadPool()
 {
 
     {
-
-        std::lock_guard<std::mutex> lock(queueMutex);
+        std::lock_guard<std::mutex> lock(
+            queue_mutex
+        );
 
         stop = true;
-
     }
 
 
-    // wake all workers
     condition.notify_all();
 
 
-
-    // wait workers exit
     for(auto& worker : workers)
     {
         worker.join();

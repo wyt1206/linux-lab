@@ -1,9 +1,8 @@
 #ifndef THREADPOOL_H
 #define THREADPOOL_H
 
-#include <iostream>
-#include <thread>
 #include <vector>
+#include <thread>
 #include <queue>
 #include <mutex>
 #include <condition_variable>
@@ -15,7 +14,7 @@ class ThreadPool
 
 public:
 
-    ThreadPool(size_t numThreads);
+    ThreadPool(size_t thread_num);
 
     ~ThreadPool();
 
@@ -25,23 +24,18 @@ public:
 
 private:
 
-    // worker threads
     std::vector<std::thread> workers;
 
 
-    // task queue
     std::queue<std::function<void()>> tasks;
 
 
-    // protect task queue
-    std::mutex queueMutex;
+    std::mutex queue_mutex;
 
 
-    // notify workers
     std::condition_variable condition;
 
 
-    // stop flag
     bool stop;
 
 
