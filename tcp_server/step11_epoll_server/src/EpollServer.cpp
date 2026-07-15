@@ -251,10 +251,54 @@ void EpollServer::start()
             else
             {
 
-                std::cout
-                    << "Client event fd="
-                    << fd
-                    << std::endl;
+                char buffer[1024];
+
+                memset(buffer, 0, sizeof(buffer));
+
+
+                int n = recv(
+                    fd,
+                    buffer,
+                    sizeof(buffer),
+                    0
+                );
+
+
+                if(n > 0)
+                {
+
+                    std::cout
+                        << "Received: "
+                        << buffer
+                        << std::endl;
+
+                }
+                else if(n == 0)
+                {
+
+                    std::cout
+                        << "Client disconnected fd="
+                        << fd
+                        << std::endl;
+
+
+                    epoll_ctl(
+                        epoll_fd_,
+                        EPOLL_CTL_DEL,
+                        fd,
+                        nullptr
+                    );
+
+
+                    close(fd);
+
+                }
+                else
+                {
+
+                    perror("recv");
+
+                }
 
             }
 
