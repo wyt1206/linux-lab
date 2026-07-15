@@ -5,16 +5,17 @@
 
 #include <unistd.h>
 
+#include <fcntl.h>
+
 #include <cstring>
 
 #include <cerrno>
 
-
-#include <fcntl.h>
-
 #include <netinet/in.h>
 
 #include <sys/socket.h>
+
+
 
 
 
@@ -29,19 +30,23 @@ EpollServer::EpollServer(int port)
 
 
 
+
+
 EpollServer::~EpollServer()
 {
 
-    if(listen_fd_ != -1)
+    for(auto &item : connections_)
     {
-        close(listen_fd_);
+        close(item.first);
     }
+
+
+    if(listen_fd_ != -1)
+        close(listen_fd_);
 
 
     if(epoll_fd_ != -1)
-    {
         close(epoll_fd_);
-    }
 
 }
 
@@ -53,34 +58,23 @@ EpollServer::~EpollServer()
 void EpollServer::setNonBlocking(int fd)
 {
 
-    int flags = fcntl(
-        fd,
-        F_GETFL,
-        0
-    );
-
-
-    if(flags == -1)
-    {
-        perror("fcntl get");
-        return;
-    }
-
-
-
-    if(
+    int flags =
         fcntl(
             fd,
-            F_SETFL,
-            flags | O_NONBLOCK
-        )
-        == -1
-    )
-    {
-        perror("fcntl set");
-    }
+            F_GETFL,
+            0
+        );
+
+
+    fcntl(
+        fd,
+        F_SETFL,
+        flags | O_NONBLOCK
+    );
 
 }
+
+
 
 
 
@@ -90,19 +84,12 @@ void EpollServer::setNonBlocking(int fd)
 void EpollServer::initSocket()
 {
 
-    listen_fd_ = socket(
-        AF_INET,
-        SOCK_STREAM,
-        0
-    );
-
-
-    if(listen_fd_ == -1)
-    {
-        perror("socket");
-        exit(1);
-    }
-
+    listen_fd_ =
+        socket(
+            AF_INET,
+            SOCK_STREAM,
+            0
+        );
 
 
     int opt = 1;
@@ -125,47 +112,37 @@ void EpollServer::initSocket()
     sockaddr_in addr{};
 
 
-    addr.sin_family = AF_INET;
-
-    addr.sin_addr.s_addr = INADDR_ANY;
-
-    addr.sin_port = htons(port_);
+    addr.sin_family =
+        AF_INET;
 
 
+    addr.sin_addr.s_addr =
+        INADDR_ANY;
 
 
-    if(
-        bind(
-            listen_fd_,
-            (sockaddr*)&addr,
-            sizeof(addr)
-        )
-        < 0
-    )
-    {
-        perror("bind");
-        exit(1);
-    }
+    addr.sin_port =
+        htons(port_);
 
 
 
 
-    if(
-        listen(
-            listen_fd_,
-            SOMAXCONN
-        )
-        < 0
-    )
-    {
-        perror("listen");
-        exit(1);
-    }
+    bind(
+        listen_fd_,
+        (sockaddr*)&addr,
+        sizeof(addr)
+    );
+
+
+
+    listen(
+        listen_fd_,
+        SOMAXCONN
+    );
 
 
 
     std::cout
-        << "Listening on port "
+        << "listen "
         << port_
         << std::endl;
 
@@ -177,56 +154,39 @@ void EpollServer::initSocket()
 
 
 
+
+
 void EpollServer::initEpoll()
 {
 
-    epoll_fd_ = epoll_create1(0);
+    epoll_fd_ =
+        epoll_create1(0);
 
 
 
-    if(epoll_fd_ == -1)
-    {
-        perror("epoll_create1");
-        exit(1);
-    }
+    epoll_event ev{};
 
 
+    ev.events =
+        EPOLLIN |
+        EPOLLET;
 
 
-    epoll_event event{};
-
-
-    event.events =
-        EPOLLIN | EPOLLET;
-
-
-    event.data.fd =
+    ev.data.fd =
         listen_fd_;
 
 
 
+    epoll_ctl(
+        epoll_fd_,
+        EPOLL_CTL_ADD,
+        listen_fd_,
+        &ev
+    );
 
-    if(
-        epoll_ctl(
-            epoll_fd_,
-            EPOLL_CTL_ADD,
-            listen_fd_,
-            &event
-        )
-        == -1
-    )
-    {
-        perror("epoll_ctl listen");
-        exit(1);
-    }
-
-
-
-    std::cout
-        << "epoll initialized"
-        << std::endl;
 
 }
+
 
 
 
@@ -241,15 +201,15 @@ void EpollServer::acceptConnection()
     while(true)
     {
 
-        int client_fd = accept(
-            listen_fd_,
-            nullptr,
-            nullptr
-        );
+        int client_fd =
+            accept(
+                listen_fd_,
+                nullptr,
+                nullptr
+            );
 
 
-
-        if(client_fd == -1)
+        if(client_fd < 0)
         {
 
             if(errno == EAGAIN ||
@@ -258,8 +218,6 @@ void EpollServer::acceptConnection()
                 break;
             }
 
-
-            perror("accept");
             break;
 
         }
@@ -271,46 +229,42 @@ void EpollServer::acceptConnection()
 
 
 
-        epoll_event event{};
+        connections_[client_fd] =
+        {
+            client_fd,
+            ""
+        };
 
 
-        event.events =
-            EPOLLIN | EPOLLET;
 
 
+        epoll_event ev{};
 
-        event.data.fd =
+
+        ev.events =
+            EPOLLIN |
+            EPOLLET;
+
+
+        ev.data.fd =
             client_fd;
 
 
 
-
-        if(
-            epoll_ctl(
-                epoll_fd_,
-                EPOLL_CTL_ADD,
-                client_fd,
-                &event
-            )
-            == -1
-        )
-        {
-
-            perror("epoll_ctl client");
-
-            close(client_fd);
-
-            continue;
-
-        }
-
+        epoll_ctl(
+            epoll_fd_,
+            EPOLL_CTL_ADD,
+            client_fd,
+            &ev
+        );
 
 
 
         std::cout
-            << "New client fd="
+            << "client "
             << client_fd
             << std::endl;
+
 
     }
 
@@ -323,7 +277,8 @@ void EpollServer::acceptConnection()
 
 
 
-void EpollServer::handleRead(int client_fd)
+
+void EpollServer::handleRead(int fd)
 {
 
     char buffer[1024];
@@ -333,68 +288,45 @@ void EpollServer::handleRead(int client_fd)
     while(true)
     {
 
-        memset(
-            buffer,
-            0,
-            sizeof(buffer)
-        );
 
-
-
-        int n = recv(
-            client_fd,
-            buffer,
-            sizeof(buffer),
-            0
-        );
-
+        int n =
+            recv(
+                fd,
+                buffer,
+                sizeof(buffer),
+                0
+            );
 
 
 
         if(n > 0)
         {
 
-            std::cout
-                << "Received: "
-                << buffer
-                << std::endl;
+
+            connections_[fd]
+                .write_buffer
+                .append(
+                    buffer,
+                    n
+                );
+
 
         }
-
 
 
         else if(n == 0)
         {
 
-            std::cout
-                << "Client disconnected fd="
-                << client_fd
-                << std::endl;
-
-
-
-
-            epoll_ctl(
-                epoll_fd_,
-                EPOLL_CTL_DEL,
-                client_fd,
-                nullptr
-            );
-
-
-
-            close(client_fd);
-
+            closeConnection(fd);
 
             break;
 
         }
 
 
-
-
         else
         {
+
 
             if(errno == EAGAIN ||
                errno == EWOULDBLOCK)
@@ -405,30 +337,191 @@ void EpollServer::handleRead(int client_fd)
             }
 
 
+            closeConnection(fd);
 
-            perror("recv");
+            break;
+
+        }
+
+    }
 
 
 
-            epoll_ctl(
-                epoll_fd_,
-                EPOLL_CTL_DEL,
-                client_fd,
-                nullptr
+
+    if(!connections_[fd]
+        .write_buffer.empty())
+    {
+
+        enableWrite(fd);
+
+    }
+
+
+}
+
+
+
+
+
+
+
+
+
+void EpollServer::handleWrite(int fd)
+{
+
+    auto &buffer =
+        connections_[fd]
+        .write_buffer;
+
+
+
+    while(!buffer.empty())
+    {
+
+
+        int n =
+            send(
+                fd,
+                buffer.data(),
+                buffer.size(),
+                0
             );
 
 
-            close(client_fd);
+
+        if(n > 0)
+        {
+
+            buffer.erase(
+                0,
+                n
+            );
+
+        }
 
 
-            break;
+        else
+        {
+
+            if(errno == EAGAIN ||
+               errno == EWOULDBLOCK)
+            {
+                break;
+            }
+
+
+            closeConnection(fd);
+
+            return;
 
         }
 
 
     }
 
+
+
+    if(buffer.empty())
+    {
+        disableWrite(fd);
+    }
+
+
 }
+
+
+
+
+
+
+
+
+
+void EpollServer::enableWrite(int fd)
+{
+
+    epoll_event ev{};
+
+
+    ev.events =
+        EPOLLIN |
+        EPOLLOUT |
+        EPOLLET;
+
+
+    ev.data.fd =
+        fd;
+
+
+
+    epoll_ctl(
+        epoll_fd_,
+        EPOLL_CTL_MOD,
+        fd,
+        &ev
+    );
+
+}
+
+
+
+
+
+
+
+void EpollServer::disableWrite(int fd)
+{
+
+    epoll_event ev{};
+
+
+    ev.events =
+        EPOLLIN |
+        EPOLLET;
+
+
+
+    ev.data.fd =
+        fd;
+
+
+
+    epoll_ctl(
+        epoll_fd_,
+        EPOLL_CTL_MOD,
+        fd,
+        &ev
+    );
+
+}
+
+
+
+
+
+
+
+
+void EpollServer::closeConnection(int fd)
+{
+
+    epoll_ctl(
+        epoll_fd_,
+        EPOLL_CTL_DEL,
+        fd,
+        nullptr
+    );
+
+
+    close(fd);
+
+
+    connections_.erase(fd);
+
+
+}
+
 
 
 
@@ -446,43 +539,33 @@ void EpollServer::start()
 
 
 
-
     while(true)
     {
 
 
-        int n = epoll_wait(
-            epoll_fd_,
-            events_,
-            MAX_EVENTS,
-            -1
-        );
+        int n =
+            epoll_wait(
+                epoll_fd_,
+                events_,
+                MAX_EVENTS,
+                -1
+            );
 
 
 
-        if(n == -1)
+        for(int i=0;i<n;i++)
         {
 
-            if(errno == EINTR)
-                continue;
-
-
-            perror("epoll_wait");
-
-            break;
-
-        }
-
-
-
-
-
-
-        for(int i = 0; i < n; i++)
-        {
 
             int fd =
-                events_[i].data.fd;
+                events_[i]
+                .data.fd;
+
+
+
+            uint32_t event =
+                events_[i]
+                .events;
 
 
 
@@ -493,16 +576,31 @@ void EpollServer::start()
 
             }
 
+
             else
             {
 
-                handleRead(fd);
+
+                if(event & EPOLLIN)
+                {
+                    handleRead(fd);
+                }
+
+
+
+                if(event & EPOLLOUT)
+                {
+                    handleWrite(fd);
+                }
+
 
             }
 
 
         }
 
+
     }
+
 
 }
