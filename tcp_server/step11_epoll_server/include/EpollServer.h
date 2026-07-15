@@ -3,8 +3,10 @@
 
 #include <sys/epoll.h>
 
+
 class EpollServer
 {
+
 public:
 
     explicit EpollServer(int port);
@@ -25,6 +27,15 @@ private:
     void acceptConnection();
 
 
+    void handleRead(int client_fd);
+
+
+    void setNonBlocking(int fd);
+
+
+
+private:
+
     int port_;
 
     int listen_fd_;
@@ -34,8 +45,10 @@ private:
 
     static constexpr int MAX_EVENTS = 10;
 
+
     struct epoll_event events_[MAX_EVENTS];
 
 };
+
 
 #endif
