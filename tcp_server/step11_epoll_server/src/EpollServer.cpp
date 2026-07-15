@@ -1,72 +1,55 @@
 #include "EpollServer.h"
 
-
 #include <iostream>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <fcntl.h>
-#include <cstring>
-#include <cstdlib>
 
+#include <unistd.h>
+
+#include <cstring>
+
+#include <netinet/in.h>
+
+#include <sys/socket.h>
+
+#include <fcntl.h>
 
 
 EpollServer::EpollServer(int port)
     :
-      port_(port),
-      server_fd_(-1),
-      epoll_fd_(-1),
-      running_(true)
+    port_(port),
+    listen_fd_(-1),
+    epoll_fd_(-1)
 {
 
 }
-
 
 
 EpollServer::~EpollServer()
 {
-
-    if(server_fd_ >= 0)
+    if(listen_fd_ != -1)
     {
-        close(server_fd_);
+        close(listen_fd_);
     }
 
 
-    if(epoll_fd_ >= 0)
+    if(epoll_fd_ != -1)
     {
         close(epoll_fd_);
     }
-
 }
 
 
 
-void EpollServer::start()
+void EpollServer::initSocket()
 {
 
-    setupSocket();
-
-
-    setupEpoll();
-
-
-    eventLoop();
-
-}
-
-
-
-void EpollServer::setupSocket()
-{
-
-    server_fd_ = socket(
+    listen_fd_ = socket(
         AF_INET,
         SOCK_STREAM,
         0
     );
 
 
-    if(server_fd_ < 0)
+    if(listen_fd_ == -1)
     {
         perror("socket");
         exit(1);
@@ -76,9 +59,8 @@ void EpollServer::setupSocket()
 
     int opt = 1;
 
-
     setsockopt(
-        server_fd_,
+        listen_fd_,
         SOL_SOCKET,
         SO_REUSEADDR,
         &opt,
@@ -99,7 +81,7 @@ void EpollServer::setupSocket()
 
 
     if(bind(
-        server_fd_,
+        listen_fd_,
         (sockaddr*)&addr,
         sizeof(addr)
     ) < 0)
@@ -110,7 +92,10 @@ void EpollServer::setupSocket()
 
 
 
-    if(listen(server_fd_, 128) < 0)
+    if(listen(
+        listen_fd_,
+        SOMAXCONN
+    ) < 0)
     {
         perror("listen");
         exit(1);
@@ -119,7 +104,7 @@ void EpollServer::setupSocket()
 
 
     std::cout
-        << "Server listening on port "
+        << "Listening on port "
         << port_
         << std::endl;
 
@@ -127,21 +112,13 @@ void EpollServer::setupSocket()
 
 
 
-
-
-void EpollServer::setupEpoll()
+void EpollServer::initEpoll()
 {
-
-    /*
-        创建 epoll instance
-
-    */
 
     epoll_fd_ = epoll_create1(0);
 
 
-
-    if(epoll_fd_ < 0)
+    if(epoll_fd_ == -1)
     {
         perror("epoll_create1");
         exit(1);
@@ -149,14 +126,51 @@ void EpollServer::setupEpoll()
 
 
 
-    /*
-        注册 server socket
+    epoll_event event{};
 
-        监听:
 
-        EPOLLIN
+    event.events = EPOLLIN;
 
-    */
+    event.data.fd = listen_fd_;
+
+
+
+    if(epoll_ctl(
+        epoll_fd_,
+        EPOLL_CTL_ADD,
+        listen_fd_,
+        &event
+    ) == -1)
+    {
+        perror("epoll_ctl");
+        exit(1);
+    }
+
+
+    std::cout
+        << "epoll initialized"
+        << std::endl;
+
+}
+
+
+
+void EpollServer::acceptConnection()
+{
+
+    int client_fd = accept(
+        listen_fd_,
+        nullptr,
+        nullptr
+    );
+
+
+    if(client_fd == -1)
+    {
+        perror("accept");
+        return;
+    }
+
 
 
     epoll_event event{};
@@ -165,55 +179,54 @@ void EpollServer::setupEpoll()
     event.events = EPOLLIN;
 
 
-    event.data.fd = server_fd_;
+    event.data.fd = client_fd;
 
 
 
     if(epoll_ctl(
         epoll_fd_,
         EPOLL_CTL_ADD,
-        server_fd_,
+        client_fd,
         &event
-    ) < 0)
+    ) == -1)
     {
-        perror("epoll_ctl");
-        exit(1);
+        perror("epoll_ctl client");
+        close(client_fd);
+        return;
     }
 
 
 
     std::cout
-        << "epoll setup complete\n";
+        << "New client fd="
+        << client_fd
+        << std::endl;
 
 }
 
 
 
-
-
-void EpollServer::eventLoop()
+void EpollServer::start()
 {
 
-    constexpr int MAX_EVENTS = 10;
+    initSocket();
+
+    initEpoll();
 
 
-    epoll_event events[MAX_EVENTS];
 
-
-
-    while(running_)
+    while(true)
     {
 
         int n = epoll_wait(
             epoll_fd_,
-            events,
+            events_,
             MAX_EVENTS,
             -1
         );
 
 
-
-        if(n < 0)
+        if(n == -1)
         {
             perror("epoll_wait");
             break;
@@ -221,70 +234,32 @@ void EpollServer::eventLoop()
 
 
 
-        for(int i = 0; i < n; i++)
+        for(int i=0;i<n;i++)
         {
 
-            int fd = events[i].data.fd;
+            int fd = events_[i].data.fd;
 
 
 
-            if(fd == server_fd_)
+            if(fd == listen_fd_)
             {
 
                 acceptConnection();
 
             }
 
+            else
+            {
+
+                std::cout
+                    << "Client event fd="
+                    << fd
+                    << std::endl;
+
+            }
+
         }
 
     }
-
-}
-
-
-
-
-
-void EpollServer::acceptConnection()
-{
-
-    sockaddr_in client_addr{};
-
-
-    socklen_t len = sizeof(client_addr);
-
-
-
-    int client_fd = accept(
-        server_fd_,
-        (sockaddr*)&client_addr,
-        &len
-    );
-
-
-
-    if(client_fd < 0)
-    {
-        perror("accept");
-        return;
-    }
-
-
-
-    std::cout
-        << "New client connected. fd="
-        << client_fd
-        << std::endl;
-
-
-
-    /*
-        Step 11.2 到这里结束
-
-        下一步：
-
-        epoll_ctl ADD client_fd
-
-    */
 
 }
