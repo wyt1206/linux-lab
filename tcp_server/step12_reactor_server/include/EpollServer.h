@@ -5,28 +5,14 @@
 #include "EventLoop.h"
 
 
-#include <sys/epoll.h>
-
-
 #include <unordered_map>
+
+#include <memory>
 
 #include <string>
 
 
-
-
-struct Connection
-{
-
-    int fd;
-
-
-    std::string write_buffer;
-
-};
-
-
-
+class Channel;
 
 
 
@@ -36,7 +22,9 @@ class EpollServer
 
 public:
 
-    explicit EpollServer(int port);
+    explicit EpollServer(
+        int port
+    );
 
 
     ~EpollServer();
@@ -51,7 +39,6 @@ private:
 
 
     void initSocket();
-
 
 
     void acceptConnection();
@@ -73,49 +60,36 @@ private:
     );
 
 
-
-    void enableWrite(
-        int fd
-    );
-
-
-    void disableWrite(
-        int fd
-    );
-
-
-    void closeConnection(
-        int fd
-    );
-
-
-
-
 private:
 
     int port_;
 
-
     int listen_fd_;
-
 
 
     EventLoop loop_;
 
 
 
-    static constexpr int MAX_EVENTS = 10;
-
-
-    epoll_event events_[MAX_EVENTS];
+    std::unique_ptr<Channel>
+    listenChannel_;
 
 
 
     std::unordered_map<
         int,
-        Connection
+        std::unique_ptr<Channel>
     >
-    connections_;
+    channels_;
+
+
+
+    std::unordered_map<
+        int,
+        std::string
+    >
+    writeBuffers_;
+
 
 };
 

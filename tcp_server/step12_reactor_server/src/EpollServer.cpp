@@ -1,35 +1,31 @@
 #include "EpollServer.h"
 
+#include "Channel.h"
+
+
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 
 #include <iostream>
-
-#include <unistd.h>
-
-#include <fcntl.h>
-
 #include <cstring>
-
 #include <cerrno>
 
 
-#include <netinet/in.h>
-
-#include <sys/socket.h>
 
 
 
-
-
-
-EpollServer::EpollServer(int port)
-    :
-    port_(port),
-    listen_fd_(-1)
+EpollServer::EpollServer(
+    int port
+)
+:
+port_(port),
+listen_fd_(-1)
 {
 
 }
-
 
 
 
@@ -39,20 +35,9 @@ EpollServer::EpollServer(int port)
 EpollServer::~EpollServer()
 {
 
-    for(auto &c : connections_)
-    {
-        close(c.first);
-    }
-
-
-    if(listen_fd_ >= 0)
-    {
-        close(listen_fd_);
-    }
+    close(listen_fd_);
 
 }
-
-
 
 
 
@@ -99,8 +84,7 @@ void EpollServer::initSocket()
         );
 
 
-
-    int opt = 1;
+    int opt=1;
 
 
     setsockopt(
@@ -120,7 +104,6 @@ void EpollServer::initSocket()
 
 
     sockaddr_in addr{};
-
 
 
     addr.sin_family =
@@ -147,20 +130,36 @@ void EpollServer::initSocket()
 
     listen(
         listen_fd_,
-        SOMAXCONN
+        128
     );
 
 
 
-    loop_.addFd(
-        listen_fd_,
+    listenChannel_ =
+        std::make_unique<Channel>(
+            listen_fd_
+        );
+
+
+
+    listenChannel_->setReadCallback(
+        [this]()
+        {
+            acceptConnection();
+        }
+    );
+
+
+
+    loop_.addChannel(
+        listenChannel_.get(),
         EPOLLIN | EPOLLET
     );
 
 
 
     std::cout
-        << "server listen "
+        << "listen "
         << port_
         << std::endl;
 
@@ -180,8 +179,7 @@ void EpollServer::acceptConnection()
     while(true)
     {
 
-
-        int client_fd =
+        int client =
             accept(
                 listen_fd_,
                 nullptr,
@@ -190,39 +188,46 @@ void EpollServer::acceptConnection()
 
 
 
-        if(client_fd < 0)
+        if(client <0)
         {
 
-            if(errno == EAGAIN ||
-               errno == EWOULDBLOCK)
-            {
+            if(errno==EAGAIN)
                 break;
-            }
 
 
-            break;
+            return;
 
         }
 
 
 
-        setNonBlocking(
-            client_fd
+        setNonBlocking(client);
+
+
+
+        auto channel =
+            std::make_unique<Channel>(
+                client
+            );
+
+
+
+        channel->setReadCallback(
+            [this,client]()
+            {
+                handleRead(client);
+            }
         );
 
 
 
-        connections_[client_fd]
-        =
-        {
-            client_fd,
-            ""
-        };
+        channels_[client] =
+            std::move(channel);
 
 
 
-        loop_.addFd(
-            client_fd,
+        loop_.addChannel(
+            channels_[client].get(),
             EPOLLIN | EPOLLET
         );
 
@@ -230,7 +235,7 @@ void EpollServer::acceptConnection()
 
         std::cout
             << "client "
-            << client_fd
+            << client
             << std::endl;
 
 
@@ -245,89 +250,45 @@ void EpollServer::acceptConnection()
 
 
 
-
 void EpollServer::handleRead(
     int fd
 )
 {
 
-    char buffer[1024];
+    char buf[1024];
 
 
+    int n =
+        recv(
+            fd,
+            buf,
+            sizeof(buf),
+            0
+        );
 
-    while(true)
+
+    if(n>0)
     {
 
-
-        int n =
-            recv(
-                fd,
-                buffer,
-                sizeof(buffer),
-                0
-            );
-
-
-
-        if(n > 0)
-        {
-
-            connections_[fd]
-                .write_buffer
-                .append(
-                    buffer,
-                    n
-                );
-
-        }
-
-
-        else if(n == 0)
-        {
-
-            closeConnection(fd);
-
-            break;
-
-        }
-
-
-        else
-        {
-
-            if(errno == EAGAIN ||
-               errno == EWOULDBLOCK)
-            {
-                break;
-            }
-
-
-            closeConnection(fd);
-
-            break;
-
-        }
-
+        send(
+            fd,
+            buf,
+            n,
+            0
+        );
 
     }
 
-
-
-    if(
-        connections_.count(fd)
-        &&
-        !connections_[fd]
-        .write_buffer.empty()
-    )
+    else
     {
 
-        enableWrite(fd);
+        close(fd);
+
+        channels_.erase(fd);
 
     }
 
 }
-
-
 
 
 
@@ -340,128 +301,8 @@ void EpollServer::handleWrite(
 )
 {
 
-    auto &buffer =
-        connections_[fd]
-        .write_buffer;
-
-
-
-    while(!buffer.empty())
-    {
-
-
-        int n =
-            send(
-                fd,
-                buffer.data(),
-                buffer.size(),
-                0
-            );
-
-
-        if(n > 0)
-        {
-
-            buffer.erase(
-                0,
-                n
-            );
-
-        }
-
-
-        else
-        {
-
-            if(errno == EAGAIN ||
-               errno == EWOULDBLOCK)
-            {
-                break;
-            }
-
-
-            closeConnection(fd);
-
-            return;
-
-        }
-
-    }
-
-
-
-    if(buffer.empty())
-    {
-        disableWrite(fd);
-    }
 
 }
-
-
-
-
-
-
-
-
-
-void EpollServer::enableWrite(
-    int fd
-)
-{
-
-    loop_.modifyFd(
-        fd,
-        EPOLLIN |
-        EPOLLOUT |
-        EPOLLET
-    );
-
-}
-
-
-
-
-
-
-
-
-void EpollServer::disableWrite(
-    int fd
-)
-{
-
-    loop_.modifyFd(
-        fd,
-        EPOLLIN |
-        EPOLLET
-    );
-
-}
-
-
-
-
-
-
-
-
-void EpollServer::closeConnection(
-    int fd
-)
-{
-
-    loop_.removeFd(fd);
-
-
-    close(fd);
-
-
-    connections_.erase(fd);
-
-}
-
-
 
 
 
@@ -475,65 +316,6 @@ void EpollServer::start()
     initSocket();
 
 
-
-    while(true)
-    {
-
-
-        int n =
-            loop_.wait(
-                events_,
-                MAX_EVENTS
-            );
-
-
-
-        for(int i=0;i<n;i++)
-        {
-
-
-            int fd =
-                events_[i]
-                .data.fd;
-
-
-
-            uint32_t event =
-                events_[i]
-                .events;
-
-
-
-            if(fd == listen_fd_)
-            {
-
-                acceptConnection();
-
-            }
-
-            else
-            {
-
-
-                if(event & EPOLLIN)
-                {
-                    handleRead(fd);
-                }
-
-
-
-                if(event & EPOLLOUT)
-                {
-                    handleWrite(fd);
-                }
-
-            }
-
-
-        }
-
-
-    }
-
+    loop_.loop();
 
 }

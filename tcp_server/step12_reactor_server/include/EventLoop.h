@@ -4,6 +4,9 @@
 
 #include <sys/epoll.h>
 
+class Channel;
+
+
 
 class EventLoop
 {
@@ -15,33 +18,39 @@ public:
     ~EventLoop();
 
 
-    void addFd(
-        int fd,
+
+    void addChannel(
+        Channel* channel,
         uint32_t events
     );
 
 
-    void modifyFd(
-        int fd,
+
+    void modifyChannel(
+        Channel* channel,
         uint32_t events
     );
 
 
-    void removeFd(
-        int fd
+
+    void removeChannel(
+        Channel* channel
     );
 
 
-    int wait(
-        epoll_event* events,
-        int maxEvents
-    );
 
+    void loop();
 
 
 private:
 
     int epoll_fd_;
+
+
+    static constexpr int MAX_EVENTS = 10;
+
+
+    epoll_event events_[MAX_EVENTS];
 
 };
 

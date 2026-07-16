@@ -1,11 +1,14 @@
 #include "EventLoop.h"
 
+#include "Channel.h"
+
 
 #include <unistd.h>
 
+#include <cstdlib>
+
 #include <iostream>
 
-#include <cstdlib>
 
 
 
@@ -27,13 +30,11 @@ EventLoop::EventLoop()
 
 
 
+
 EventLoop::~EventLoop()
 {
 
-    if(epoll_fd_ >= 0)
-    {
-        close(epoll_fd_);
-    }
+    close(epoll_fd_);
 
 }
 
@@ -42,8 +43,10 @@ EventLoop::~EventLoop()
 
 
 
-void EventLoop::addFd(
-    int fd,
+
+
+void EventLoop::addChannel(
+    Channel* channel,
     uint32_t events
 )
 {
@@ -55,23 +58,17 @@ void EventLoop::addFd(
         events;
 
 
-    ev.data.fd =
-        fd;
+    ev.data.ptr =
+        channel;
 
 
 
-    if(
-        epoll_ctl(
-            epoll_fd_,
-            EPOLL_CTL_ADD,
-            fd,
-            &ev
-        )
-        < 0
-    )
-    {
-        perror("epoll add");
-    }
+    epoll_ctl(
+        epoll_fd_,
+        EPOLL_CTL_ADD,
+        channel->fd(),
+        &ev
+    );
 
 }
 
@@ -81,8 +78,9 @@ void EventLoop::addFd(
 
 
 
-void EventLoop::modifyFd(
-    int fd,
+
+void EventLoop::modifyChannel(
+    Channel* channel,
     uint32_t events
 )
 {
@@ -94,23 +92,17 @@ void EventLoop::modifyFd(
         events;
 
 
-    ev.data.fd =
-        fd;
+    ev.data.ptr =
+        channel;
 
 
 
-    if(
-        epoll_ctl(
-            epoll_fd_,
-            EPOLL_CTL_MOD,
-            fd,
-            &ev
-        )
-        < 0
-    )
-    {
-        perror("epoll mod");
-    }
+    epoll_ctl(
+        epoll_fd_,
+        EPOLL_CTL_MOD,
+        channel->fd(),
+        &ev
+    );
 
 }
 
@@ -120,15 +112,16 @@ void EventLoop::modifyFd(
 
 
 
-void EventLoop::removeFd(
-    int fd
+
+void EventLoop::removeChannel(
+    Channel* channel
 )
 {
 
     epoll_ctl(
         epoll_fd_,
         EPOLL_CTL_DEL,
-        fd,
+        channel->fd(),
         nullptr
     );
 
@@ -141,17 +134,39 @@ void EventLoop::removeFd(
 
 
 
-int EventLoop::wait(
-    epoll_event* events,
-    int maxEvents
-)
+void EventLoop::loop()
 {
 
-    return epoll_wait(
-        epoll_fd_,
-        events,
-        maxEvents,
-        -1
-    );
+    while(true)
+    {
+
+        int n =
+            epoll_wait(
+                epoll_fd_,
+                events_,
+                MAX_EVENTS,
+                -1
+            );
+
+
+
+        for(int i=0;i<n;i++)
+        {
+
+            Channel* channel =
+                static_cast<Channel*>(
+                    events_[i]
+                    .data
+                    .ptr
+                );
+
+
+            channel->handleEvent(
+                events_[i].events
+            );
+
+        }
+
+    }
 
 }
