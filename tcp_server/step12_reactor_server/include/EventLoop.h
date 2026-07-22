@@ -1,13 +1,14 @@
 #pragma once
 
 #include <sys/epoll.h>
-#include <vector>
+#include <unordered_map>
 
 
 class Channel;
 
 
-class EventLoop {
+class EventLoop
+{
 
 public:
 
@@ -22,13 +23,14 @@ public:
     void updateChannel(Channel* channel);
 
 
+    void removeChannel(Channel* channel);
+
+
+
 private:
 
     int epollfd_;
 
-    static const int MAX_EVENTS = 1024;
-
-
-    epoll_event events_[MAX_EVENTS];
+    bool quit_;
 
 };

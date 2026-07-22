@@ -4,9 +4,11 @@
 #include "EventLoop.h"
 
 
+#include <sys/socket.h>
 #include <unistd.h>
 
 #include <iostream>
+
 
 
 TcpConnection::TcpConnection(
@@ -15,14 +17,15 @@ TcpConnection::TcpConnection(
 )
 :
 loop_(loop),
-fd_(fd),
-channel_(
-    std::make_unique<Channel>(
-        loop,
-        fd
-    )
-)
+fd_(fd)
 {
+
+    channel_ =
+        std::make_unique<Channel>(
+            loop_,
+            fd_
+        );
+
 
     channel_->setReadCallback(
         [this]()
@@ -38,67 +41,60 @@ channel_(
 
 
 
+
 TcpConnection::~TcpConnection()
 {
+
     close(fd_);
+
 }
+
 
 
 
 void TcpConnection::handleRead()
 {
 
-    char buffer[1024];
+    char buf[1024];
 
 
     int n =
-        read(
+        recv(
             fd_,
-            buffer,
-            sizeof(buffer)
+            buf,
+            sizeof(buf),
+            0
         );
 
 
-    if(n > 0)
-    {
 
-        std::string msg(
-            buffer,
-            n
-        );
-
-
-        std::cout
-            << "Received: "
-            << msg
-            << std::endl;
-
-
-        send(msg);
-
-    }
-    else
+    if(n>0)
     {
 
         std::cout
-            << "Client disconnected"
+            << "recv: "
+            << std::string(buf,n)
             << std::endl;
 
     }
 
-}
+
+    else if(n==0)
+    {
+
+
+        std::cout
+            << "client closed fd="
+            << fd_
+            << std::endl;
 
 
 
-void TcpConnection::send(
-    const std::string& msg
-)
-{
+        loop_->removeChannel(
+            channel_.get()
+        );
 
-    write(
-        fd_,
-        msg.data(),
-        msg.size()
-    );
+
+    }
 
 }

@@ -1,7 +1,9 @@
 #include "Channel.h"
 #include "EventLoop.h"
 
-#include <utility>
+
+#include <sys/epoll.h>
+
 
 
 Channel::Channel(
@@ -37,44 +39,39 @@ void Channel::setEvents(
     uint32_t events
 )
 {
-    revents_ = events;
+    events_=events;
 }
 
 
 
-void Channel::setReadCallback(
-    EventCallback cb
+void Channel::setRevents(
+    uint32_t rev
 )
 {
-    readCallback_ = std::move(cb);
-}
-
-
-
-void Channel::setWriteCallback(
-    EventCallback cb
-)
-{
-    writeCallback_ = std::move(cb);
+    revents_=rev;
 }
 
 
 
 void Channel::enableReading()
 {
+
     events_ |= EPOLLIN;
 
+
     loop_->updateChannel(this);
+
 }
 
 
 
-void Channel::enableWriting()
+void Channel::setReadCallback(
+    Callback cb
+)
 {
-    events_ |= EPOLLOUT;
-
-    loop_->updateChannel(this);
+    readCallback_=std::move(cb);
 }
+
 
 
 
@@ -83,20 +80,12 @@ void Channel::handleEvent()
 
     if(revents_ & EPOLLIN)
     {
+
         if(readCallback_)
         {
             readCallback_();
         }
-    }
 
-
-
-    if(revents_ & EPOLLOUT)
-    {
-        if(writeCallback_)
-        {
-            writeCallback_();
-        }
     }
 
 }

@@ -1,23 +1,22 @@
 #include "EventLoop.h"
 #include "Channel.h"
 
+
 #include <unistd.h>
-#include <cstring>
+#include <iostream>
 
 
 EventLoop::EventLoop()
 {
-
     epollfd_ = epoll_create1(0);
 
+    quit_ = false;
 }
 
 
 EventLoop::~EventLoop()
 {
-
     close(epollfd_);
-
 }
 
 
@@ -25,33 +24,34 @@ EventLoop::~EventLoop()
 void EventLoop::updateChannel(Channel* channel)
 {
 
-    epoll_event event;
+    epoll_event ev{};
 
-    memset(&event,0,sizeof(event));
-
-
-    event.events =
+    ev.events =
         channel->events();
 
 
-    /*
-       注意这里
-
-       不再保存 fd
-
-       保存 Channel 指针
-
-    */
-
-    event.data.ptr = channel;
-
+    ev.data.ptr = channel;
 
 
     epoll_ctl(
         epollfd_,
         EPOLL_CTL_ADD,
         channel->fd(),
-        &event
+        &ev
+    );
+
+}
+
+
+
+void EventLoop::removeChannel(Channel* channel)
+{
+
+    epoll_ctl(
+        epollfd_,
+        EPOLL_CTL_DEL,
+        channel->fd(),
+        nullptr
     );
 
 }
@@ -61,14 +61,17 @@ void EventLoop::updateChannel(Channel* channel)
 void EventLoop::loop()
 {
 
-    while(true)
+    epoll_event events[10];
+
+
+    while(!quit_)
     {
 
         int n =
             epoll_wait(
                 epollfd_,
-                events_,
-                MAX_EVENTS,
+                events,
+                10,
                 -1
             );
 
@@ -76,18 +79,18 @@ void EventLoop::loop()
         for(int i=0;i<n;i++)
         {
 
-            Channel* channel =
+            Channel* ch =
                 static_cast<Channel*>(
-                    events_[i].data.ptr
+                    events[i].data.ptr
                 );
 
 
-            channel->setEvents(
-                events_[i].events
+            ch->setRevents(
+                events[i].events
             );
 
 
-            channel->handleEvent();
+            ch->handleEvent();
 
         }
 

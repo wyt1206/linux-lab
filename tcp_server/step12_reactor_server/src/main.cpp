@@ -1,9 +1,5 @@
 #include "EventLoop.h"
-#include "Acceptor.h"
-#include "TcpConnection.h"
-
-
-#include <memory>
+#include "TcpServer.h"
 
 
 int main()
@@ -12,25 +8,10 @@ int main()
     EventLoop loop;
 
 
-    Acceptor acceptor(
+    TcpServer server(
         &loop,
         8080
     );
-
-
-    acceptor.setNewConnectionCallback(
-        [&](int fd)
-        {
-
-            auto conn =
-                std::make_shared<TcpConnection>(
-                    &loop,
-                    fd
-                );
-
-        }
-    );
-
 
 
     loop.loop();
