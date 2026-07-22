@@ -1,15 +1,13 @@
-#ifndef EVENT_LOOP_H
-#define EVENT_LOOP_H
-
+#pragma once
 
 #include <sys/epoll.h>
+#include <vector>
+
 
 class Channel;
 
 
-
-class EventLoop
-{
+class EventLoop {
 
 public:
 
@@ -18,41 +16,19 @@ public:
     ~EventLoop();
 
 
-
-    void addChannel(
-        Channel* channel,
-        uint32_t events
-    );
-
-
-
-    void modifyChannel(
-        Channel* channel,
-        uint32_t events
-    );
-
-
-
-    void removeChannel(
-        Channel* channel
-    );
-
-
-
     void loop();
+
+
+    void updateChannel(Channel* channel);
 
 
 private:
 
-    int epoll_fd_;
+    int epollfd_;
 
-
-    static constexpr int MAX_EVENTS = 10;
+    static const int MAX_EVENTS = 1024;
 
 
     epoll_event events_[MAX_EVENTS];
 
 };
-
-
-#endif

@@ -1,136 +1,60 @@
 #include "EventLoop.h"
-
 #include "Channel.h"
 
-
 #include <unistd.h>
-
-#include <cstdlib>
-
-#include <iostream>
-
-
+#include <cstring>
 
 
 EventLoop::EventLoop()
 {
 
-    epoll_fd_ =
-        epoll_create1(0);
-
-
-    if(epoll_fd_ < 0)
-    {
-        perror("epoll_create1");
-        exit(1);
-    }
+    epollfd_ = epoll_create1(0);
 
 }
-
-
-
 
 
 EventLoop::~EventLoop()
 {
 
-    close(epoll_fd_);
+    close(epollfd_);
 
 }
 
 
 
-
-
-
-
-
-void EventLoop::addChannel(
-    Channel* channel,
-    uint32_t events
-)
+void EventLoop::updateChannel(Channel* channel)
 {
 
-    epoll_event ev{};
+    epoll_event event;
+
+    memset(&event,0,sizeof(event));
 
 
-    ev.events =
-        events;
+    event.events =
+        channel->events();
 
 
-    ev.data.ptr =
-        channel;
+    /*
+       注意这里
+
+       不再保存 fd
+
+       保存 Channel 指针
+
+    */
+
+    event.data.ptr = channel;
 
 
 
     epoll_ctl(
-        epoll_fd_,
+        epollfd_,
         EPOLL_CTL_ADD,
         channel->fd(),
-        &ev
+        &event
     );
 
 }
-
-
-
-
-
-
-
-
-void EventLoop::modifyChannel(
-    Channel* channel,
-    uint32_t events
-)
-{
-
-    epoll_event ev{};
-
-
-    ev.events =
-        events;
-
-
-    ev.data.ptr =
-        channel;
-
-
-
-    epoll_ctl(
-        epoll_fd_,
-        EPOLL_CTL_MOD,
-        channel->fd(),
-        &ev
-    );
-
-}
-
-
-
-
-
-
-
-
-void EventLoop::removeChannel(
-    Channel* channel
-)
-{
-
-    epoll_ctl(
-        epoll_fd_,
-        EPOLL_CTL_DEL,
-        channel->fd(),
-        nullptr
-    );
-
-}
-
-
-
-
-
 
 
 
@@ -142,12 +66,11 @@ void EventLoop::loop()
 
         int n =
             epoll_wait(
-                epoll_fd_,
+                epollfd_,
                 events_,
                 MAX_EVENTS,
                 -1
             );
-
 
 
         for(int i=0;i<n;i++)
@@ -155,15 +78,16 @@ void EventLoop::loop()
 
             Channel* channel =
                 static_cast<Channel*>(
-                    events_[i]
-                    .data
-                    .ptr
+                    events_[i].data.ptr
                 );
 
 
-            channel->handleEvent(
+            channel->setEvents(
                 events_[i].events
             );
+
+
+            channel->handleEvent();
 
         }
 
