@@ -1,20 +1,39 @@
-#include "Server.h"
+#include "EventLoop.h"
+#include "Acceptor.h"
+#include "TcpConnection.h"
 
 
-#include <iostream>
+#include <memory>
 
 
 int main()
 {
 
-    Server server(8080);
+    EventLoop loop;
 
 
-    std::cout
-        << "Server started\n";
+    Acceptor acceptor(
+        &loop,
+        8080
+    );
 
 
-    server.start();
+    acceptor.setNewConnectionCallback(
+        [&](int fd)
+        {
+
+            auto conn =
+                std::make_shared<TcpConnection>(
+                    &loop,
+                    fd
+                );
+
+        }
+    );
+
+
+
+    loop.loop();
 
 
     return 0;

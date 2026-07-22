@@ -12,12 +12,10 @@ include_directories(include)
 
 
 
-add_executable(
-    server
-
+add_executable(server
     src/main.cpp
     src/EventLoop.cpp
     src/Channel.cpp
     src/Acceptor.cpp
-    src/Server.cpp
+    src/TcpConnection.cpp
 )
