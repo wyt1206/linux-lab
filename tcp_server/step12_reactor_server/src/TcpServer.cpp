@@ -6,45 +6,41 @@
 
 #include <iostream>
 
-TcpServer::~TcpServer() = default;
-
 TcpServer::TcpServer(
     EventLoop* loop,
     int port
 )
 :
-loop_(loop),
-acceptor_(
-    std::make_unique<Acceptor>(
-        loop,
-        port
-    )
-)
+loop_(loop)
 {
 
-    acceptor_->setNewConnectionCallback(
+    acceptor_ =
+        std::make_unique<Acceptor>(
+            loop_,
+            port
+        );
 
+    acceptor_->setNewConnectionCallback(
         [this](int fd)
         {
-
             newConnection(fd);
-
         }
-
     );
 
 }
 
+TcpServer::~TcpServer()
+{
 
+}
 
 void TcpServer::start()
 {
 
-    loop_->loop();
+    // Acceptor is already listening
+    // after construction
 
 }
-
-
 
 void TcpServer::newConnection(
     int fd
@@ -56,16 +52,39 @@ void TcpServer::newConnection(
         << fd
         << std::endl;
 
-
     auto conn =
-        std::make_unique<TcpConnection>(
+        std::make_shared<TcpConnection>(
             loop_,
+            this,
             fd
         );
 
-
     connections_[fd]
         =
-        std::move(conn);
+        conn;
+
+}
+
+void TcpServer::removeConnection(
+    int fd
+)
+{
+    auto it =
+        connections_.find(fd);
+
+    if(
+        it != connections_.end()
+    )
+    {
+
+        connections_.erase(it);
+
+
+        std::cout
+            << "remove connection fd="
+            << fd
+            << std::endl;
+
+    }
 
 }

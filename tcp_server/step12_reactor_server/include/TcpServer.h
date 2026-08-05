@@ -1,13 +1,11 @@
 #pragma once
 
-#include <memory>
 #include <unordered_map>
-
+#include <memory>
 
 class EventLoop;
 class Acceptor;
 class TcpConnection;
-
 
 class TcpServer
 {
@@ -19,12 +17,13 @@ public:
         int port
     );
 
-
     ~TcpServer();
-
 
     void start();
 
+    void removeConnection(
+        int fd
+    );
 
 private:
 
@@ -32,17 +31,16 @@ private:
         int fd
     );
 
-
 private:
 
     EventLoop* loop_;
 
-    std::unique_ptr<Acceptor> acceptor_;
-
+    std::unique_ptr<Acceptor>
+    acceptor_;
 
     std::unordered_map<
         int,
-        std::unique_ptr<TcpConnection>
-    > connections_;
-
+        std::shared_ptr<TcpConnection>
+    >
+    connections_;
 };
