@@ -7,9 +7,7 @@ class EventLoop;
 
 class Channel
 {
-
 public:
-
     using Callback =
         std::function<void()>;
 
@@ -44,6 +42,10 @@ public:
         Callback cb
     );
 
+    void setCloseCallback(
+        Callback cb
+    );
+
     void handleEvent();
 
 private:
@@ -59,4 +61,6 @@ private:
     Callback readCallback_;
 
     Callback writeCallback_;
+
+    Callback closeCallback_;
 };

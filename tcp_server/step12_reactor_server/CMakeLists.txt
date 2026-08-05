@@ -23,5 +23,5 @@ add_executable(server
 
     src/TcpConnection.cpp
     src/TcpServer.cpp
-
+    src/SocketUtil.cpp
 )

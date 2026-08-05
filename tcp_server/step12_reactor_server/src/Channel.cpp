@@ -1,4 +1,5 @@
 #include "Channel.h"
+
 #include "EventLoop.h"
 
 #include <sys/epoll.h>
@@ -75,27 +76,42 @@ void Channel::setWriteCallback(
     writeCallback_=std::move(cb);
 }
 
+void Channel::setCloseCallback(
+    Callback cb
+)
+{
+    closeCallback_=std::move(cb);
+}
+
 void Channel::handleEvent()
 {
+    /*
+        Client graceful shutdown
+
+        FIN
+         |
+         |
+        EPOLLRDHUP
+    */
     if(
         revents_ &
         (
-            EPOLLERR |
+            EPOLLRDHUP |
             EPOLLHUP |
-            EPOLLRDHUP
+            EPOLLERR
         )
     )
     {
-        if(readCallback_)
+        if(closeCallback_)
         {
-            readCallback_();
+            closeCallback_();
         }
+
         return;
     }
 
     if(
-        revents_ &
-        EPOLLIN
+        revents_ & EPOLLIN
     )
     {
         if(readCallback_)
@@ -105,8 +121,7 @@ void Channel::handleEvent()
     }
 
     if(
-        revents_ &
-        EPOLLOUT
+        revents_ & EPOLLOUT
     )
     {
         if(writeCallback_)

@@ -1,19 +1,18 @@
 #include "Acceptor.h"
 
-#include "Channel.h"
 #include "EventLoop.h"
+#include "Channel.h"
+#include "SocketUtil.h"
 
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include <unistd.h>
-
 #include <cstring>
+#include <cerrno>
 #include <iostream>
-
-
-Acceptor::~Acceptor() = default;
-
-
 
 Acceptor::Acceptor(
     EventLoop* loop,
@@ -21,37 +20,30 @@ Acceptor::Acceptor(
 )
 :
 loop_(loop),
-listenfd_(-1),
-port_(port)
+listenfd_(-1)
 {
-
     /*
-     * 1. 创建监听 socket
-     */
-    listenfd_ = socket(
-        AF_INET,
-        SOCK_STREAM,
-        0
-    );
-
+        1. create listen socket
+    */
+    listenfd_ =
+        socket(
+            AF_INET,
+            SOCK_STREAM,
+            0
+        );
 
     if(listenfd_ < 0)
     {
-        std::cerr
-            << "socket create failed"
-            << std::endl;
-
-        return;
+        perror("socket");
+        exit(1);
     }
 
-
-
     /*
-     * 2. 设置 SO_REUSEADDR
-     *
-     * 避免 server 重启时
-     * bind: Address already in use
-     */
+        2. reuse address
+
+        avoid:
+        bind: Address already in use
+    */
     int opt = 1;
 
     setsockopt(
@@ -62,14 +54,25 @@ port_(port)
         sizeof(opt)
     );
 
+    /*
+        3. non-blocking listen socket
+    */
+    if(
+        setNonBlocking(listenfd_) < 0
+    )
+    {
+        perror("setNonBlocking");
 
+        exit(1);
+    }
 
     /*
-     * 3. bind
-     */
+        4. bind
+    */
     sockaddr_in addr{};
 
-    addr.sin_family = AF_INET;
+    addr.sin_family =
+        AF_INET;
 
     addr.sin_addr.s_addr =
         INADDR_ANY;
@@ -77,70 +80,52 @@ port_(port)
     addr.sin_port =
         htons(port);
 
-
-
-    if(bind(
-        listenfd_,
-        (sockaddr*)&addr,
-        sizeof(addr)
-    ) < 0)
+    if(
+        bind(
+            listenfd_,
+            (sockaddr*)&addr,
+            sizeof(addr)
+        )
+        < 0
+    )
     {
-        std::cerr
-            << "bind failed"
-            << std::endl;
+        perror("bind");
 
-        close(listenfd_);
-        return;
+        exit(1);
     }
-
-
 
     /*
-     * 4. listen
-     */
-    if(listen(
-        listenfd_,
-        128
-    ) < 0)
+        5. listen
+    */
+    if(
+        listen(
+            listenfd_,
+            128
+        )
+        < 0
+    )
     {
-        std::cerr
-            << "listen failed"
-            << std::endl;
+        perror("listen");
 
-        close(listenfd_);
-        return;
+        exit(1);
     }
-
-
 
     std::cout
-        << "Listening on port "
-        << port_
+        << "Acceptor listen on port "
+        << port
         << std::endl;
 
-
-
     /*
-     * 5. 创建 Channel
-     *
-     * listenfd 是一个 fd
-     * Channel 负责监听它的事件
-     */
+        6. create Channel
+
+        listen fd is managed by Reactor
+    */
     channel_ =
         std::make_unique<Channel>(
             loop_,
             listenfd_
         );
 
-
-
-    /*
-     * 6. 设置读事件回调
-     *
-     * epoll 返回 EPOLLIN
-     * EventLoop 调 Channel
-     * Channel 调这里
-     */
     channel_->setReadCallback(
         [this]()
         {
@@ -148,70 +133,106 @@ port_(port)
         }
     );
 
-
-
-    /*
-     * 7. 开启监听
-     *
-     * 注册 listenfd 到 epoll
-     */
     channel_->enableReading();
-
 }
 
-
-
-void Acceptor::handleRead()
+Acceptor::~Acceptor()
 {
-
     /*
-     * accept 新连接
-     */
-    int clientfd =
-        accept(
-            listenfd_,
-            nullptr,
-            nullptr
-        );
+        Channel destroyed first
 
-
-
-    if(clientfd < 0)
+        then close listen fd
+    */
+    if(listenfd_ >= 0)
     {
-        std::cerr
-            << "accept failed"
-            << std::endl;
-
-        return;
+        close(listenfd_);
     }
-
-
-
-    std::cout
-        << "New client fd="
-        << clientfd
-        << std::endl;
-
-
-
-    /*
-     * 把 fd 交给 TcpServer
-     */
-    if(newConnectionCallback_)
-    {
-        newConnectionCallback_(
-            clientfd
-        );
-    }
-
 }
-
-
 
 void Acceptor::setNewConnectionCallback(
     NewConnectionCallback cb
 )
 {
-    newConnectionCallback_ =
+    callback_ =
         std::move(cb);
+}
+
+void Acceptor::handleRead()
+{
+    /*
+        Because listenfd is non-blocking:
+
+        accept() may return:
+
+        -1
+        errno = EAGAIN
+
+        means:
+        all pending connections are accepted
+
+        NOT an error
+    */
+    while(true)
+    {
+        int clientfd =
+            accept(
+                listenfd_,
+                nullptr,
+                nullptr
+            );
+
+        if(clientfd < 0)
+        {
+            if(
+                errno == EAGAIN ||
+                errno == EWOULDBLOCK
+            )
+            {
+                return;
+            }
+
+            perror("accept");
+
+            return;
+        }
+
+        /*
+            client socket also needs
+            non-blocking mode
+        */
+        if(
+            setNonBlocking(clientfd)
+            < 0
+        )
+        {
+            perror("setNonBlocking client");
+
+            close(clientfd);
+
+            continue;
+
+        }
+
+        std::cout
+            << "accept client fd="
+            << clientfd
+            << std::endl;
+
+        /*
+            notify TcpServer
+
+            TcpServer will create:
+
+                TcpConnection
+                    |
+                    |
+                 Channel
+        */
+        if(callback_)
+        {
+            callback_(
+                clientfd
+            );
+        }
+    }
 }
