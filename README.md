@@ -211,6 +211,15 @@ Refactored the code structure:
 - Manage connection creation and close
 - Separate read and write event handling
 
+## Reactor Architecture Improvements (Step 15)
+
+Improved Reactor internals and lifecycle handling:
+
+- Add explicit Channel registration state to distinguish new, added, and deleted channels
+- Use `EPOLL_CTL_ADD` for new channels and `EPOLL_CTL_MOD` for event changes
+- Make `TcpServer` lifecycle and service startup semantics clearer
+- Ensure the Reactor keeps channel state consistent during accept, read, write, and close
+
 ## Thread Pool and Concurrency
 
 Added:
