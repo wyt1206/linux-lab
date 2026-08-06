@@ -96,9 +96,11 @@ TcpServer
 
  |
 TcpConnection
-
  |
-Channel
+ +----------------+
+ |                |
+ v                v
+Channel       writeBuffer
 
  |
 EventLoop
@@ -121,14 +123,14 @@ Worker Threads
 
 Component description:
 
-| Component     | Description                                  |
-| ------------- | -------------------------------------------- |
-| EventLoop     | Handles epoll events                         |
-| Channel       | Stores fd events and callbacks               |
-| Acceptor      | Accepts new client connections               |
-| TcpServer     | Creates and manages connections              |
-| TcpConnection | Handles client connection state and I/O      |
-| ThreadPool    | Runs tasks using worker threads              |
+| Component     | Description                             |
+| ------------- | --------------------------------------- |
+| EventLoop     | Handles epoll events                    |
+| Channel       | Stores fd events and callbacks          |
+| Acceptor      | Accepts new client connections          |
+| TcpServer     | Creates and manages connections         |
+| TcpConnection | Handles client connection state, read/write buffer and socket I/O |
+| ThreadPool    | Runs tasks using worker threads         |
 
 # How Event Handling Works
 
@@ -153,7 +155,17 @@ TcpConnection reads data
         |
         v
 
-ThreadPool executes task
+Data is stored in write buffer
+
+        |
+        v
+
+EPOLLOUT event triggers write
+
+        |
+        v
+
+TcpConnection sends data back
 ```
 
 # Project Steps
@@ -185,7 +197,7 @@ Added Linux epoll support:
 - Handle client read events
 - Add non-blocking socket
 - Add EPOLLET support
-- Add write buffer with EPOLLOUT
+- Handle write events using EPOLLOUT
 
 ## Reactor Refactoring
 
@@ -197,6 +209,7 @@ Refactored the code structure:
 - Add TcpConnection for per-client state
 - Add TcpServer connection lifecycle management
 - Manage connection creation and close
+- Separate read and write event handling
 
 ## Thread Pool and Concurrency
 
@@ -207,6 +220,14 @@ Added:
 - Thread synchronization
 - ThreadPool abstraction
 - Submit tasks from TcpConnection to worker threads
+
+## Write Buffer
+
+Added write buffer support:
+
+- Store pending response data inside TcpConnection
+- Separate data processing from socket writing
+- Prepare for EPOLLOUT based asynchronous writing
 
 # Future Plans
 
@@ -227,3 +248,4 @@ Through this project, I practiced:
 - Reactor pattern
 - Thread synchronization
 - C++ programming
+- Network I/O buffering
