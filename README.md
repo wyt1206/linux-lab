@@ -11,6 +11,7 @@ Through this project, I learned more about:
 - epoll
 - multi-thread programming
 - event-driven server design
+- thread pool and task scheduling
 
 # Development Environment
 
@@ -84,27 +85,39 @@ Current main components:
 
 Client
 
-｜
+ |
 TCP Socket
 
-｜
+ |
 Acceptor
 
-｜
-
+ |
 TcpServer
 
-｜
+ |
 TcpConnection
 
-｜
+ |
 Channel
 
-｜
+ |
 EventLoop
 
-｜
+ |
 epoll
+
+
+TcpConnection
+
+ |
+ v
+
+ThreadPool
+
+ |
+ v
+
+Worker Threads
 
 Component description:
 
@@ -120,27 +133,27 @@ Component description:
 # How Event Handling Works
 
 ```
-Client connects
+Client sends data
 
         |
         v
 
-Acceptor accepts connection
+EventLoop detects event using epoll
 
         |
         v
 
-TcpServer creates TcpConnection
+Channel triggers callback
 
         |
         v
 
-TcpConnection registers Channel
+TcpConnection reads data
 
         |
         v
 
-EventLoop monitors events using epoll
+ThreadPool executes task
 ```
 
 # Project Steps
@@ -193,6 +206,7 @@ Added:
 - Task queue
 - Thread synchronization
 - ThreadPool abstraction
+- Submit tasks from TcpConnection to worker threads
 
 # Future Plans
 

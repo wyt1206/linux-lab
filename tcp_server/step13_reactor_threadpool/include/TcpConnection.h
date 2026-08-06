@@ -6,12 +6,13 @@
 class EventLoop;
 class Channel;
 class TcpServer;
+class ThreadPool;
 
 class TcpConnection : public std::enable_shared_from_this<TcpConnection>
 {
 
   public:
-    TcpConnection(EventLoop* loop, TcpServer* server, int fd);
+    TcpConnection(EventLoop* loop, TcpServer* server, ThreadPool* pool, int fd);
 
     ~TcpConnection();
 
@@ -30,6 +31,8 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection>
     EventLoop* loop_;
 
     TcpServer* server_;
+
+    ThreadPool* threadPool_;
 
     int fd_;
 

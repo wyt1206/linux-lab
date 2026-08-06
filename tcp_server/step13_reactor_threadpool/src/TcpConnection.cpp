@@ -3,6 +3,7 @@
 #include "Channel.h"
 #include "EventLoop.h"
 #include "TcpServer.h"
+#include "ThreadPool.h"
 
 #include <sys/socket.h>
 #include <unistd.h>
@@ -12,8 +13,9 @@
 #include <cerrno>
 #include <iostream>
 
-TcpConnection::TcpConnection(EventLoop* loop, TcpServer* server, int fd)
-    : loop_(loop), server_(server), fd_(fd)
+TcpConnection::TcpConnection(EventLoop* loop, TcpServer* server,
+                             ThreadPool* pool, int fd)
+    : loop_(loop), server_(server), threadPool_(pool), fd_(fd)
 {
 
     channel_ = std::make_unique<Channel>(loop_, fd_);
@@ -46,7 +48,13 @@ void TcpConnection::handleRead()
 
         if (n > 0)
         {
-            send(std::string(buffer, n));
+            std::string message(buffer, n);
+
+            std::cout << "received: " << message << std::endl;
+
+            threadPool_->submit(
+                [message]()
+                { std::cout << "processing: " << message << std::endl; });
         }
         else if (n == 0)
         {
