@@ -1,37 +1,16 @@
-#include "ThreadPool.h"
-
-#include <chrono>
-#include <iostream>
-#include <thread>
+#include "EventLoop.h"
+#include "TcpServer.h"
 
 int main()
 {
 
-    ThreadPool pool(4);
+    EventLoop loop;
 
-    for (int i = 0; i < 10; i++)
-    {
+    TcpServer server(&loop, 8080);
 
-        pool.submit(
-            [i]()
-            {
-                std::cout << "Task " << i << " running in thread "
-                          << std::this_thread::get_id() << std::endl;
+    server.start();
 
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-
-                std::cout << "Task " << i << " finished" << std::endl;
-            });
-    }
-
-    /*
-        wait tasks finish
-
-        temporary for test
-
-    */
-
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    loop.loop();
 
     return 0;
 }

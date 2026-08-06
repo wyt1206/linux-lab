@@ -6,6 +6,7 @@
 class EventLoop;
 class Acceptor;
 class TcpConnection;
+class ThreadPool;
 
 class TcpServer
 {
@@ -17,15 +18,18 @@ class TcpServer
 
     void start();
 
-    void removeConnection(int fd);
-
-  private:
     void newConnection(int fd);
+
+    void removeConnection(int fd);
 
   private:
     EventLoop* loop_;
 
+    int port_;
+
     std::unique_ptr<Acceptor> acceptor_;
+
+    std::unique_ptr<ThreadPool> threadPool_;
 
     std::unordered_map<int, std::shared_ptr<TcpConnection>> connections_;
 };

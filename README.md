@@ -83,64 +83,65 @@ The server was gradually changed from a simple TCP server to an event-driven ser
 Current main components:
 
 Client
-  |
+
+｜
 TCP Socket
-  |
+
+｜
 Acceptor
-  |
+
+｜
+
+TcpServer
+
+｜
 TcpConnection
-  |
+
+｜
 Channel
-  |
+
+｜
 EventLoop
-  |
+
+｜
 epoll
 
 Component description:
 
-| Component     | Description                        |
-| ------------- | ---------------------------------- |
-| EventLoop     | Handles epoll events               |
-| Channel       | Stores fd events and callbacks     |
-| Acceptor      | Accepts new client connections     |
-| TcpConnection | Handles client connection and data |
-| TcpServer     | Manages server                     |
-| ThreadPool    | Runs tasks using worker threads    |
-
----
+| Component     | Description                                  |
+| ------------- | -------------------------------------------- |
+| EventLoop     | Handles epoll events                         |
+| Channel       | Stores fd events and callbacks               |
+| Acceptor      | Accepts new client connections               |
+| TcpServer     | Creates and manages connections              |
+| TcpConnection | Handles client connection state and I/O      |
+| ThreadPool    | Runs tasks using worker threads              |
 
 # How Event Handling Works
 
 ```
-Client sends data
+Client connects
 
         |
         v
 
-Kernel updates socket state
+Acceptor accepts connection
 
         |
         v
 
-epoll_wait() returns event
+TcpServer creates TcpConnection
 
         |
         v
 
-EventLoop handles event
+TcpConnection registers Channel
 
         |
         v
 
-Channel calls callback
-
-        |
-        v
-
-TcpConnection processes data
+EventLoop monitors events using epoll
 ```
-
----
 
 # Project Steps
 
@@ -179,19 +180,19 @@ Refactored the code structure:
 
 - Extract EventLoop from server logic
 - Add Channel abstraction
-- Add Acceptor
-- Add TcpConnection
-- Manage connection close
+- Add Acceptor for accepting connections
+- Add TcpConnection for per-client state
+- Add TcpServer connection lifecycle management
+- Manage connection creation and close
 
-## Thread Pool
+## Thread Pool and Concurrency
 
 Added:
 
 - Worker threads
 - Task queue
 - Thread synchronization
-
----
+- ThreadPool abstraction
 
 # Future Plans
 
@@ -201,8 +202,6 @@ I plan to continue improving this project:
 - Measure latency and throughput
 - Use Linux perf to understand performance
 - Improve logging
-
----
 
 # What I Learned
 
