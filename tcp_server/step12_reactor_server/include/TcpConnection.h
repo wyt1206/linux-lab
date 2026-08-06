@@ -7,44 +7,33 @@ class EventLoop;
 class Channel;
 class TcpServer;
 
-class TcpConnection:
-    public std::enable_shared_from_this<TcpConnection>
+class TcpConnection : public std::enable_shared_from_this<TcpConnection>
 {
 
-public:
-
-    TcpConnection(
-        EventLoop* loop,
-        TcpServer* server,
-        int fd
-    );
+  public:
+    TcpConnection(EventLoop* loop, TcpServer* server, int fd);
 
     ~TcpConnection();
 
     int fd() const;
 
-    void send(
-        const std::string& msg
-    );
+    void send(const std::string& msg);
 
-private:
-
+  private:
     void handleRead();
 
     void handleWrite();
 
     void handleClose();
 
-private:
-
+  private:
     EventLoop* loop_;
 
     TcpServer* server_;
 
     int fd_;
 
-    std::unique_ptr<Channel>
-    channel_;
+    std::unique_ptr<Channel> channel_;
 
     std::string writeBuffer_;
 };

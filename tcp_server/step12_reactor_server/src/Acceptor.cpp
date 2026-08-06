@@ -1,38 +1,27 @@
 #include "Acceptor.h"
 
-#include "EventLoop.h"
 #include "Channel.h"
+#include "EventLoop.h"
 #include "SocketUtil.h"
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 
-#include <unistd.h>
-#include <cstring>
 #include <cerrno>
+#include <cstring>
 #include <iostream>
+#include <unistd.h>
 
-Acceptor::Acceptor(
-    EventLoop* loop,
-    int port
-)
-:
-loop_(loop),
-listenfd_(-1)
+Acceptor::Acceptor(EventLoop* loop, int port) : loop_(loop), listenfd_(-1)
 {
     /*
         1. create listen socket
     */
-    listenfd_ =
-        socket(
-            AF_INET,
-            SOCK_STREAM,
-            0
-        );
+    listenfd_ = socket(AF_INET, SOCK_STREAM, 0);
 
-    if(listenfd_ < 0)
+    if (listenfd_ < 0)
     {
         perror("socket");
         exit(1);
@@ -46,20 +35,12 @@ listenfd_(-1)
     */
     int opt = 1;
 
-    setsockopt(
-        listenfd_,
-        SOL_SOCKET,
-        SO_REUSEADDR,
-        &opt,
-        sizeof(opt)
-    );
+    setsockopt(listenfd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
     /*
         3. non-blocking listen socket
     */
-    if(
-        setNonBlocking(listenfd_) < 0
-    )
+    if (setNonBlocking(listenfd_) < 0)
     {
         perror("setNonBlocking");
 
@@ -71,23 +52,13 @@ listenfd_(-1)
     */
     sockaddr_in addr{};
 
-    addr.sin_family =
-        AF_INET;
+    addr.sin_family = AF_INET;
 
-    addr.sin_addr.s_addr =
-        INADDR_ANY;
+    addr.sin_addr.s_addr = INADDR_ANY;
 
-    addr.sin_port =
-        htons(port);
+    addr.sin_port = htons(port);
 
-    if(
-        bind(
-            listenfd_,
-            (sockaddr*)&addr,
-            sizeof(addr)
-        )
-        < 0
-    )
+    if (bind(listenfd_, (sockaddr*)&addr, sizeof(addr)) < 0)
     {
         perror("bind");
 
@@ -97,41 +68,23 @@ listenfd_(-1)
     /*
         5. listen
     */
-    if(
-        listen(
-            listenfd_,
-            128
-        )
-        < 0
-    )
+    if (listen(listenfd_, 128) < 0)
     {
         perror("listen");
 
         exit(1);
     }
 
-    std::cout
-        << "Acceptor listen on port "
-        << port
-        << std::endl;
+    std::cout << "Acceptor listen on port " << port << std::endl;
 
     /*
         6. create Channel
 
         listen fd is managed by Reactor
     */
-    channel_ =
-        std::make_unique<Channel>(
-            loop_,
-            listenfd_
-        );
+    channel_ = std::make_unique<Channel>(loop_, listenfd_);
 
-    channel_->setReadCallback(
-        [this]()
-        {
-            handleRead();
-        }
-    );
+    channel_->setReadCallback([this]() { handleRead(); });
 
     channel_->enableReading();
 }
@@ -143,18 +96,15 @@ Acceptor::~Acceptor()
 
         then close listen fd
     */
-    if(listenfd_ >= 0)
+    if (listenfd_ >= 0)
     {
         close(listenfd_);
     }
 }
 
-void Acceptor::setNewConnectionCallback(
-    NewConnectionCallback cb
-)
+void Acceptor::setNewConnectionCallback(NewConnectionCallback cb)
 {
-    callback_ =
-        std::move(cb);
+    callback_ = std::move(cb);
 }
 
 void Acceptor::handleRead()
@@ -172,21 +122,13 @@ void Acceptor::handleRead()
 
         NOT an error
     */
-    while(true)
+    while (true)
     {
-        int clientfd =
-            accept(
-                listenfd_,
-                nullptr,
-                nullptr
-            );
+        int clientfd = accept(listenfd_, nullptr, nullptr);
 
-        if(clientfd < 0)
+        if (clientfd < 0)
         {
-            if(
-                errno == EAGAIN ||
-                errno == EWOULDBLOCK
-            )
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
             {
                 return;
             }
@@ -200,23 +142,16 @@ void Acceptor::handleRead()
             client socket also needs
             non-blocking mode
         */
-        if(
-            setNonBlocking(clientfd)
-            < 0
-        )
+        if (setNonBlocking(clientfd) < 0)
         {
             perror("setNonBlocking client");
 
             close(clientfd);
 
             continue;
-
         }
 
-        std::cout
-            << "accept client fd="
-            << clientfd
-            << std::endl;
+        std::cout << "accept client fd=" << clientfd << std::endl;
 
         /*
             notify TcpServer
@@ -228,11 +163,9 @@ void Acceptor::handleRead()
                     |
                  Channel
         */
-        if(callback_)
+        if (callback_)
         {
-            callback_(
-                clientfd
-            );
+            callback_(clientfd);
         }
     }
 }

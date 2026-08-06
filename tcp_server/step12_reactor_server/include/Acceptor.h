@@ -9,33 +9,24 @@ class Channel;
 class Acceptor
 {
 
-public:
-    using NewConnectionCallback =
-        std::function<void(int)>;
+  public:
+    using NewConnectionCallback = std::function<void(int)>;
 
-    Acceptor(
-        EventLoop* loop,
-        int port
-    );
+    Acceptor(EventLoop* loop, int port);
 
     ~Acceptor();
 
-    void setNewConnectionCallback(
-        NewConnectionCallback cb
-    );
+    void setNewConnectionCallback(NewConnectionCallback cb);
 
-private:
-
+  private:
     void handleRead();
 
-private:
-
+  private:
     EventLoop* loop_;
 
     int listenfd_;
 
-    std::unique_ptr<Channel>
-    channel_;
+    std::unique_ptr<Channel> channel_;
 
     NewConnectionCallback callback_;
 };

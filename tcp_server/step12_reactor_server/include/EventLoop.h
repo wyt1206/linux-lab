@@ -3,34 +3,24 @@
 #include <sys/epoll.h>
 #include <unordered_map>
 
-
 class Channel;
-
 
 class EventLoop
 {
 
-public:
-
+  public:
     EventLoop();
 
     ~EventLoop();
 
-
     void loop();
-
 
     void updateChannel(Channel* channel);
 
-
     void removeChannel(Channel* channel);
 
-
-
-private:
-
+  private:
     int epollfd_;
 
     bool quit_;
-
 };

@@ -4,17 +4,9 @@
 
 #include <sys/epoll.h>
 
-Channel::Channel(
-    EventLoop* loop,
-    int fd
-)
-:
-loop_(loop),
-fd_(fd),
-events_(0),
-revents_(0)
+Channel::Channel(EventLoop* loop, int fd)
+    : loop_(loop), fd_(fd), events_(0), revents_(0)
 {
-
 }
 
 int Channel::fd() const
@@ -27,18 +19,14 @@ uint32_t Channel::events() const
     return events_;
 }
 
-void Channel::setEvents(
-    uint32_t events
-)
+void Channel::setEvents(uint32_t events)
 {
-    events_=events;
+    events_ = events;
 }
 
-void Channel::setRevents(
-    uint32_t rev
-)
+void Channel::setRevents(uint32_t rev)
 {
-    revents_=rev;
+    revents_ = rev;
 }
 
 void Channel::enableReading()
@@ -62,25 +50,19 @@ void Channel::disableWriting()
     loop_->updateChannel(this);
 }
 
-void Channel::setReadCallback(
-    Callback cb
-)
+void Channel::setReadCallback(Callback cb)
 {
-    readCallback_=std::move(cb);
+    readCallback_ = std::move(cb);
 }
 
-void Channel::setWriteCallback(
-    Callback cb
-)
+void Channel::setWriteCallback(Callback cb)
 {
-    writeCallback_=std::move(cb);
+    writeCallback_ = std::move(cb);
 }
 
-void Channel::setCloseCallback(
-    Callback cb
-)
+void Channel::setCloseCallback(Callback cb)
 {
-    closeCallback_=std::move(cb);
+    closeCallback_ = std::move(cb);
 }
 
 void Channel::handleEvent()
@@ -93,16 +75,9 @@ void Channel::handleEvent()
          |
         EPOLLRDHUP
     */
-    if(
-        revents_ &
-        (
-            EPOLLRDHUP |
-            EPOLLHUP |
-            EPOLLERR
-        )
-    )
+    if (revents_ & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
     {
-        if(closeCallback_)
+        if (closeCallback_)
         {
             closeCallback_();
         }
@@ -110,21 +85,17 @@ void Channel::handleEvent()
         return;
     }
 
-    if(
-        revents_ & EPOLLIN
-    )
+    if (revents_ & EPOLLIN)
     {
-        if(readCallback_)
+        if (readCallback_)
         {
             readCallback_();
         }
     }
 
-    if(
-        revents_ & EPOLLOUT
-    )
+    if (revents_ & EPOLLOUT)
     {
-        if(writeCallback_)
+        if (writeCallback_)
         {
             writeCallback_();
         }

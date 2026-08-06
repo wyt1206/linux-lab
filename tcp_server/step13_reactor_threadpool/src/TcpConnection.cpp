@@ -1,7 +1,7 @@
 #include "TcpConnection.h"
 
-#include "EventLoop.h"
 #include "Channel.h"
+#include "EventLoop.h"
 #include "TcpServer.h"
 
 #include <sys/socket.h>
@@ -9,42 +9,20 @@
 
 #include <sys/epoll.h>
 
-#include <iostream>
 #include <cerrno>
+#include <iostream>
 
-TcpConnection::TcpConnection(
-    EventLoop* loop,
-    TcpServer* server,
-    int fd
-)
-:
-loop_(loop),
-server_(server),
-fd_(fd)
+TcpConnection::TcpConnection(EventLoop* loop, TcpServer* server, int fd)
+    : loop_(loop), server_(server), fd_(fd)
 {
 
-    channel_ =
-        std::make_unique<Channel>(
-            loop_,
-            fd_
-        );
+    channel_ = std::make_unique<Channel>(loop_, fd_);
 
-    channel_->setReadCallback(
-        [this]()
-        {
-            handleRead();
-        }
-    );
+    channel_->setReadCallback([this]() { handleRead(); });
 
-    channel_->setWriteCallback(
-        [this]()
-        {
-            handleWrite();
-        }
-    );
+    channel_->setWriteCallback([this]() { handleWrite(); });
 
     channel_->enableReading();
-
 }
 
 TcpConnection::~TcpConnection()
@@ -61,41 +39,26 @@ void TcpConnection::handleRead()
 {
     char buffer[4096];
 
-    while(true)
+    while (true)
     {
 
-        int n =
-            recv(
-                fd_,
-                buffer,
-                sizeof(buffer),
-                0
-            );
+        int n = recv(fd_, buffer, sizeof(buffer), 0);
 
-        if(n > 0)
+        if (n > 0)
         {
-            send(
-                std::string(
-                    buffer,
-                    n
-                )
-            );
+            send(std::string(buffer, n));
         }
-        else if(n == 0)
+        else if (n == 0)
         {
 
             handleClose();
 
             return;
-
         }
         else
         {
 
-            if(
-                errno == EAGAIN ||
-                errno == EWOULDBLOCK
-            )
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
             {
                 break;
             }
@@ -107,9 +70,7 @@ void TcpConnection::handleRead()
     }
 }
 
-void TcpConnection::send(
-    const std::string& msg
-)
+void TcpConnection::send(const std::string& msg)
 {
     writeBuffer_ += msg;
 
@@ -118,32 +79,20 @@ void TcpConnection::send(
 
 void TcpConnection::handleWrite()
 {
-    while(
-        !writeBuffer_.empty()
-    )
+    while (!writeBuffer_.empty())
     {
 
-        int n =
-            ::send(
-                fd_,
-                writeBuffer_.data(),
-                writeBuffer_.size(),
-                0
-            );
+        int n = ::send(fd_, writeBuffer_.data(), writeBuffer_.size(), 0);
 
-        if(n > 0)
+        if (n > 0)
         {
 
-            writeBuffer_.erase(
-                0,
-                n
-            );
-
+            writeBuffer_.erase(0, n);
         }
         else
         {
 
-            if(errno == EAGAIN)
+            if (errno == EAGAIN)
             {
                 return;
             }
@@ -152,7 +101,6 @@ void TcpConnection::handleWrite()
 
             return;
         }
-
     }
 
     channel_->disableWriting();
@@ -160,11 +108,7 @@ void TcpConnection::handleWrite()
 
 void TcpConnection::handleClose()
 {
-    loop_->removeChannel(
-        channel_.get()
-    );
+    loop_->removeChannel(channel_.get());
 
-    server_->removeConnection(
-        fd_
-    );
+    server_->removeConnection(fd_);
 }

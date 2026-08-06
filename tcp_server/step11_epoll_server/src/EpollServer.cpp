@@ -1,6 +1,5 @@
 #include "EpollServer.h"
 
-
 #include <iostream>
 
 #include <unistd.h>
@@ -15,520 +14,223 @@
 
 #include <sys/socket.h>
 
-
-
-
-
-EpollServer::EpollServer(int port)
-    :
-    port_(port),
-    listen_fd_(-1),
-    epoll_fd_(-1)
+EpollServer::EpollServer(int port) : port_(port), listen_fd_(-1), epoll_fd_(-1)
 {
-
 }
-
-
-
-
 
 EpollServer::~EpollServer()
 {
 
-    for(auto &item : connections_)
+    for (auto& item : connections_)
     {
         close(item.first);
     }
 
-
-    if(listen_fd_ != -1)
+    if (listen_fd_ != -1)
         close(listen_fd_);
 
-
-    if(epoll_fd_ != -1)
+    if (epoll_fd_ != -1)
         close(epoll_fd_);
-
 }
-
-
-
-
-
 
 void EpollServer::setNonBlocking(int fd)
 {
 
-    int flags =
-        fcntl(
-            fd,
-            F_GETFL,
-            0
-        );
+    int flags = fcntl(fd, F_GETFL, 0);
 
-
-    fcntl(
-        fd,
-        F_SETFL,
-        flags | O_NONBLOCK
-    );
-
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
-
-
-
-
-
-
-
 
 void EpollServer::initSocket()
 {
 
-    listen_fd_ =
-        socket(
-            AF_INET,
-            SOCK_STREAM,
-            0
-        );
-
+    listen_fd_ = socket(AF_INET, SOCK_STREAM, 0);
 
     int opt = 1;
 
-
-    setsockopt(
-        listen_fd_,
-        SOL_SOCKET,
-        SO_REUSEADDR,
-        &opt,
-        sizeof(opt)
-    );
-
-
+    setsockopt(listen_fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
     setNonBlocking(listen_fd_);
 
-
-
     sockaddr_in addr{};
 
+    addr.sin_family = AF_INET;
 
-    addr.sin_family =
-        AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
 
+    addr.sin_port = htons(port_);
 
-    addr.sin_addr.s_addr =
-        INADDR_ANY;
+    bind(listen_fd_, (sockaddr*)&addr, sizeof(addr));
 
+    listen(listen_fd_, SOMAXCONN);
 
-    addr.sin_port =
-        htons(port_);
-
-
-
-
-    bind(
-        listen_fd_,
-        (sockaddr*)&addr,
-        sizeof(addr)
-    );
-
-
-
-    listen(
-        listen_fd_,
-        SOMAXCONN
-    );
-
-
-
-    std::cout
-        << "listen "
-        << port_
-        << std::endl;
-
+    std::cout << "listen " << port_ << std::endl;
 }
-
-
-
-
-
-
-
-
 
 void EpollServer::initEpoll()
 {
 
-    epoll_fd_ =
-        epoll_create1(0);
-
-
+    epoll_fd_ = epoll_create1(0);
 
     epoll_event ev{};
 
+    ev.events = EPOLLIN | EPOLLET;
 
-    ev.events =
-        EPOLLIN |
-        EPOLLET;
+    ev.data.fd = listen_fd_;
 
-
-    ev.data.fd =
-        listen_fd_;
-
-
-
-    epoll_ctl(
-        epoll_fd_,
-        EPOLL_CTL_ADD,
-        listen_fd_,
-        &ev
-    );
-
-
+    epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, listen_fd_, &ev);
 }
-
-
-
-
-
-
-
-
 
 void EpollServer::acceptConnection()
 {
 
-    while(true)
+    while (true)
     {
 
-        int client_fd =
-            accept(
-                listen_fd_,
-                nullptr,
-                nullptr
-            );
+        int client_fd = accept(listen_fd_, nullptr, nullptr);
 
-
-        if(client_fd < 0)
+        if (client_fd < 0)
         {
 
-            if(errno == EAGAIN ||
-               errno == EWOULDBLOCK)
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
             {
                 break;
             }
 
             break;
-
         }
-
-
-
 
         setNonBlocking(client_fd);
 
-
-
-        connections_[client_fd] =
-        {
-            client_fd,
-            ""
-        };
-
-
-
+        connections_[client_fd] = {client_fd, ""};
 
         epoll_event ev{};
 
+        ev.events = EPOLLIN | EPOLLET;
 
-        ev.events =
-            EPOLLIN |
-            EPOLLET;
+        ev.data.fd = client_fd;
 
+        epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, client_fd, &ev);
 
-        ev.data.fd =
-            client_fd;
-
-
-
-        epoll_ctl(
-            epoll_fd_,
-            EPOLL_CTL_ADD,
-            client_fd,
-            &ev
-        );
-
-
-
-        std::cout
-            << "client "
-            << client_fd
-            << std::endl;
-
-
+        std::cout << "client " << client_fd << std::endl;
     }
-
 }
-
-
-
-
-
-
-
-
 
 void EpollServer::handleRead(int fd)
 {
 
     char buffer[1024];
 
-
-
-    while(true)
+    while (true)
     {
 
+        int n = recv(fd, buffer, sizeof(buffer), 0);
 
-        int n =
-            recv(
-                fd,
-                buffer,
-                sizeof(buffer),
-                0
-            );
-
-
-
-        if(n > 0)
+        if (n > 0)
         {
 
-
-            connections_[fd]
-                .write_buffer
-                .append(
-                    buffer,
-                    n
-                );
-
-
+            connections_[fd].write_buffer.append(buffer, n);
         }
 
-
-        else if(n == 0)
+        else if (n == 0)
         {
 
             closeConnection(fd);
 
             break;
-
         }
-
 
         else
         {
 
-
-            if(errno == EAGAIN ||
-               errno == EWOULDBLOCK)
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
             {
 
                 break;
-
             }
-
 
             closeConnection(fd);
 
             break;
-
         }
-
     }
 
-
-
-
-    if(!connections_[fd]
-        .write_buffer.empty())
+    if (!connections_[fd].write_buffer.empty())
     {
 
         enableWrite(fd);
-
     }
-
-
 }
-
-
-
-
-
-
-
-
 
 void EpollServer::handleWrite(int fd)
 {
 
-    auto &buffer =
-        connections_[fd]
-        .write_buffer;
+    auto& buffer = connections_[fd].write_buffer;
 
-
-
-    while(!buffer.empty())
+    while (!buffer.empty())
     {
 
+        int n = send(fd, buffer.data(), buffer.size(), 0);
 
-        int n =
-            send(
-                fd,
-                buffer.data(),
-                buffer.size(),
-                0
-            );
-
-
-
-        if(n > 0)
+        if (n > 0)
         {
 
-            buffer.erase(
-                0,
-                n
-            );
-
+            buffer.erase(0, n);
         }
-
 
         else
         {
 
-            if(errno == EAGAIN ||
-               errno == EWOULDBLOCK)
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
             {
                 break;
             }
 
-
             closeConnection(fd);
 
             return;
-
         }
-
-
     }
 
-
-
-    if(buffer.empty())
+    if (buffer.empty())
     {
         disableWrite(fd);
     }
-
-
 }
-
-
-
-
-
-
-
-
 
 void EpollServer::enableWrite(int fd)
 {
 
     epoll_event ev{};
 
+    ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
 
-    ev.events =
-        EPOLLIN |
-        EPOLLOUT |
-        EPOLLET;
+    ev.data.fd = fd;
 
-
-    ev.data.fd =
-        fd;
-
-
-
-    epoll_ctl(
-        epoll_fd_,
-        EPOLL_CTL_MOD,
-        fd,
-        &ev
-    );
-
+    epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &ev);
 }
-
-
-
-
-
-
 
 void EpollServer::disableWrite(int fd)
 {
 
     epoll_event ev{};
 
+    ev.events = EPOLLIN | EPOLLET;
 
-    ev.events =
-        EPOLLIN |
-        EPOLLET;
+    ev.data.fd = fd;
 
-
-
-    ev.data.fd =
-        fd;
-
-
-
-    epoll_ctl(
-        epoll_fd_,
-        EPOLL_CTL_MOD,
-        fd,
-        &ev
-    );
-
+    epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &ev);
 }
-
-
-
-
-
-
-
 
 void EpollServer::closeConnection(int fd)
 {
 
-    epoll_ctl(
-        epoll_fd_,
-        EPOLL_CTL_DEL,
-        fd,
-        nullptr
-    );
-
+    epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
 
     close(fd);
 
-
     connections_.erase(fd);
-
-
 }
-
-
-
-
-
-
-
-
 
 void EpollServer::start()
 {
@@ -537,70 +239,37 @@ void EpollServer::start()
 
     initEpoll();
 
-
-
-    while(true)
+    while (true)
     {
 
+        int n = epoll_wait(epoll_fd_, events_, MAX_EVENTS, -1);
 
-        int n =
-            epoll_wait(
-                epoll_fd_,
-                events_,
-                MAX_EVENTS,
-                -1
-            );
-
-
-
-        for(int i=0;i<n;i++)
+        for (int i = 0; i < n; i++)
         {
 
+            int fd = events_[i].data.fd;
 
-            int fd =
-                events_[i]
-                .data.fd;
+            uint32_t event = events_[i].events;
 
-
-
-            uint32_t event =
-                events_[i]
-                .events;
-
-
-
-            if(fd == listen_fd_)
+            if (fd == listen_fd_)
             {
 
                 acceptConnection();
-
             }
-
 
             else
             {
 
-
-                if(event & EPOLLIN)
+                if (event & EPOLLIN)
                 {
                     handleRead(fd);
                 }
 
-
-
-                if(event & EPOLLOUT)
+                if (event & EPOLLOUT)
                 {
                     handleWrite(fd);
                 }
-
-
             }
-
-
         }
-
-
     }
-
-
 }

@@ -1,32 +1,24 @@
 #pragma once
 
-#include <functional>
 #include <cstdint>
+#include <functional>
 
 class EventLoop;
 
 class Channel
 {
-public:
-    using Callback =
-        std::function<void()>;
+  public:
+    using Callback = std::function<void()>;
 
-    Channel(
-        EventLoop* loop,
-        int fd
-    );
+    Channel(EventLoop* loop, int fd);
 
     int fd() const;
 
     uint32_t events() const;
 
-    void setEvents(
-        uint32_t events
-    );
+    void setEvents(uint32_t events);
 
-    void setRevents(
-        uint32_t rev
-    );
+    void setRevents(uint32_t rev);
 
     void enableReading();
 
@@ -34,22 +26,15 @@ public:
 
     void disableWriting();
 
-    void setReadCallback(
-        Callback cb
-    );
+    void setReadCallback(Callback cb);
 
-    void setWriteCallback(
-        Callback cb
-    );
+    void setWriteCallback(Callback cb);
 
-    void setCloseCallback(
-        Callback cb
-    );
+    void setCloseCallback(Callback cb);
 
     void handleEvent();
 
-private:
-
+  private:
     EventLoop* loop_;
 
     int fd_;
