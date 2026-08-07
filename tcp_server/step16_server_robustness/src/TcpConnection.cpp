@@ -21,10 +21,6 @@ TcpConnection::TcpConnection(EventLoop* loop, TcpServer* server,
 
     channel_ = std::make_unique<Channel>(loop_, fd_);
 
-    channel_->setReadCallback([this]() { handleRead(); });
-
-    channel_->setWriteCallback([this]() { handleWrite(); });
-
     channel_->enableReading();
 
     state_ = ConnectionState::CONNECTED;
@@ -172,4 +168,36 @@ void TcpConnection::handleClose()
 bool TcpConnection::connected() const
 {
     return state_ == ConnectionState::CONNECTED;
+}
+
+void TcpConnection::connectEstablished()
+{
+    std::weak_ptr<TcpConnection> weakSelf = shared_from_this();
+
+    channel_->setReadCallback(
+        [weakSelf]()
+        {
+            if (auto self = weakSelf.lock())
+            {
+                self->handleRead();
+            }
+        });
+
+    channel_->setWriteCallback(
+        [weakSelf]()
+        {
+            if (auto self = weakSelf.lock())
+            {
+                self->handleWrite();
+            }
+        });
+
+    channel_->setCloseCallback(
+        [weakSelf]()
+        {
+            if (auto self = weakSelf.lock())
+            {
+                self->handleClose();
+            }
+        });
 }

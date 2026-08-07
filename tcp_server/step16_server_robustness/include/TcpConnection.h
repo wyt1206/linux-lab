@@ -26,6 +26,8 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection>
 
     int fd() const;
 
+    void connectEstablished();
+
     void send(const std::string& msg);
 
     bool connected() const;

@@ -37,9 +37,11 @@ void TcpServer::newConnection(int fd)
     std::cout << "new connection fd=" << fd << std::endl;
 
     auto conn =
-        std::make_shared<TcpConnection>(loop_, this, threadPool_.get(), fd);
+        std::make_shared<TcpConnection>(loop_, this, threadPool_, clientfd);
 
-    connections_[fd] = conn;
+    connections_[clientfd] = conn;
+
+    conn->connectEstablished();
 }
 
 void TcpServer::removeConnection(int fd)
