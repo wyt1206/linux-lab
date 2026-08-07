@@ -6,6 +6,7 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <thread>
 
 class Channel;
 
@@ -27,6 +28,10 @@ class EventLoop
 
     void queueInLoop(Task task);
 
+    bool isInLoopThread();
+
+    void runInLoop(Task task);
+
   private:
     void wakeup();
 
@@ -39,6 +44,8 @@ class EventLoop
     int wakeupfd_;
 
     bool quit_;
+
+    std::thread::id threadId_;
 
     std::unique_ptr<Channel> wakeupChannel_;
 

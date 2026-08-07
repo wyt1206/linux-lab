@@ -7,8 +7,11 @@
 #include <sys/eventfd.h>
 #include <unistd.h>
 
-EventLoop::EventLoop() : epollfd_(-1), wakeupfd_(-1), quit_(false)
+EventLoop::EventLoop()
+    : epollfd_(-1), wakeupfd_(-1), quit_(false),
+      threadId_(std::this_thread::get_id())
 {
+
     /*
         1. create epoll instance
     */
@@ -22,8 +25,6 @@ EventLoop::EventLoop() : epollfd_(-1), wakeupfd_(-1), quit_(false)
 
     /*
         2. create eventfd
-
-        used for cross-thread wakeup
     */
     wakeupfd_ = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
 
@@ -35,8 +36,6 @@ EventLoop::EventLoop() : epollfd_(-1), wakeupfd_(-1), quit_(false)
 
     /*
         3. create Channel for eventfd
-
-        eventfd is also monitored by epoll
     */
     wakeupChannel_ = std::make_unique<Channel>(this, wakeupfd_);
 
@@ -208,16 +207,29 @@ void EventLoop::handleWakeup()
 {
     uint64_t one;
 
-    ssize_t n = read(
-        wakeupfd_,
-        &one,
-        sizeof(one)
-    );
+    ssize_t n = read(wakeupfd_, &one, sizeof(one));
 
-    if(n != sizeof(one))
+    if (n != sizeof(one))
     {
         perror("eventfd read");
     }
 
     doPendingTasks();
+}
+
+bool EventLoop::isInLoopThread()
+{
+    return threadId_ == std::this_thread::get_id();
+}
+
+void EventLoop::runInLoop(Task task)
+{
+    if (isInLoopThread())
+    {
+        task();
+    }
+    else
+    {
+        queueInLoop(task);
+    }
 }

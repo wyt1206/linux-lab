@@ -57,22 +57,22 @@ void TcpConnection::handleRead()
             EventLoop* loop = loop_;
 
             threadPool_->submit(
-                [self, message, loop]()
+                [self, message]()
                 {
                     /*
                         Worker thread
-
-                        simulate business logic
                     */
+
                     std::cout << "processing: " << message << std::endl;
 
                     std::string response = "processed: " + message;
 
                     /*
-                        back to EventLoop thread
+                        TcpConnection::send()
+                        handles thread switch
                     */
-                    loop->queueInLoop([self, response]()
-                                       { self->send(response); });
+
+                    self->send(response);
                 });
         }
         else if (n == 0)
@@ -99,13 +99,19 @@ void TcpConnection::handleRead()
 
 void TcpConnection::send(const std::string& msg)
 {
-    std::cout << "async send: " << msg << std::endl;
+    auto self = shared_from_this();
 
-    writeBuffer_ += msg;
+    loop_->runInLoop(
+        [self, msg]()
+        {
+            std::cout << "async send: " << msg << std::endl;
 
-    std::cout << "write buffer: " << writeBuffer_ << std::endl;
+            self->writeBuffer_ += msg;
 
-    channel_->enableWriting();
+            std::cout << "write buffer: " << self->writeBuffer_ << std::endl;
+
+            self->channel_->enableWriting();
+        });
 }
 
 void TcpConnection::handleWrite()
