@@ -2,11 +2,11 @@
 #include "Channel.h"
 
 #include <cerrno>
-#include <cstring>
+#include <cstdlib>
 #include <iostream>
 #include <unistd.h>
 
-EventLoop::EventLoop()
+EventLoop::EventLoop() : epollfd_(-1), wakeupfd_(-1), quit_(false)
 {
     epollfd_ = epoll_create1(0);
 
@@ -15,8 +15,6 @@ EventLoop::EventLoop()
         perror("epoll_create1");
         exit(1);
     }
-
-    quit_ = false;
 }
 
 EventLoop::~EventLoop()
@@ -24,6 +22,11 @@ EventLoop::~EventLoop()
     if (epollfd_ >= 0)
     {
         close(epollfd_);
+    }
+
+    if (wakeupfd_ >= 0)
+    {
+        close(wakeupfd_);
     }
 }
 
@@ -125,5 +128,30 @@ void EventLoop::loop()
 
             ch->handleEvent();
         }
+    }
+}
+
+void EventLoop::queueInLoop(Task task)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    pendingTasks_.push(std::move(task));
+}
+
+void EventLoop::doPendingTasks()
+{
+    std::queue<Task> tasks;
+
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        tasks.swap(pendingTasks_);
+    }
+
+    while (!tasks.empty())
+    {
+        tasks.front()();
+
+        tasks.pop();
     }
 }

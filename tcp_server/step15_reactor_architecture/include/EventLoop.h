@@ -1,7 +1,10 @@
 #pragma once
 
 #include <sys/epoll.h>
-#include <unordered_map>
+
+#include <functional>
+#include <mutex>
+#include <queue>
 
 class Channel;
 
@@ -9,6 +12,8 @@ class EventLoop
 {
 
   public:
+    using Task = std::function<void()>;
+
     EventLoop();
 
     ~EventLoop();
@@ -19,8 +24,18 @@ class EventLoop
 
     void removeChannel(Channel* channel);
 
+    void queueInLoop(Task task);
+
   private:
+    void doPendingTasks();
+
     int epollfd_;
 
+    int wakeupfd_;
+
     bool quit_;
+
+    std::mutex mutex_;
+
+    std::queue<Task> pendingTasks_;
 };
