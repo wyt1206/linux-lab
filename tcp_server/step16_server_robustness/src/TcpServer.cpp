@@ -37,9 +37,17 @@ void TcpServer::newConnection(int fd)
     std::cout << "new connection fd=" << fd << std::endl;
 
     auto conn =
-        std::make_shared<TcpConnection>(loop_, this, threadPool_, clientfd);
+        std::make_shared<TcpConnection>(loop_, this, threadPool_.get(), fd);
 
-    connections_[clientfd] = conn;
+    /*
+        IMPORTANT:
+
+        store shared_ptr first
+        then call connectEstablished
+
+    */
+
+    connections_[fd] = conn;
 
     conn->connectEstablished();
 }
@@ -56,4 +64,9 @@ void TcpServer::removeConnection(int fd)
 
         std::cout << "remove connection fd=" << fd << std::endl;
     }
+}
+
+size_t TcpServer::connectionCount() const
+{
+    return connections_.size();
 }

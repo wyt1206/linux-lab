@@ -230,6 +230,16 @@ Added thread-safe communication between worker threads and the Reactor event loo
 - Execute asynchronous responses inside the Reactor thread
 - Keep socket operations inside the EventLoop thread to avoid unsafe cross-thread access
 
+## Server Robustness Improvements (Step 16)
+
+Improved connection lifecycle and callback safety:
+
+- Hold `shared_ptr<TcpConnection>` in `TcpServer` before `connectEstablished()`
+- Use `weak_ptr` in channel callbacks to avoid callback use-after-free
+- Add connection state tracking for connecting/connected/disconnecting/disconnected
+- Ensure async send requests are delivered safely through the EventLoop
+- Remove connections cleanly from `TcpServer` when closed
+
 ## Thread Pool and Concurrency
 
 Added:

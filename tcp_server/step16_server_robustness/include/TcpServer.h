@@ -22,6 +22,8 @@ class TcpServer
 
     void removeConnection(int fd);
 
+    size_t connectionCount() const;
+
   private:
     EventLoop* loop_;
 
