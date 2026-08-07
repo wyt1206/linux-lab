@@ -3,6 +3,7 @@
 #include <sys/epoll.h>
 
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <queue>
 
@@ -27,6 +28,10 @@ class EventLoop
     void queueInLoop(Task task);
 
   private:
+    void wakeup();
+
+    void handleWakeup();
+
     void doPendingTasks();
 
     int epollfd_;
@@ -34,6 +39,8 @@ class EventLoop
     int wakeupfd_;
 
     bool quit_;
+
+    std::unique_ptr<Channel> wakeupChannel_;
 
     std::mutex mutex_;
 

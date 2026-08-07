@@ -4,10 +4,14 @@
 #include <cerrno>
 #include <cstdlib>
 #include <iostream>
+#include <sys/eventfd.h>
 #include <unistd.h>
 
 EventLoop::EventLoop() : epollfd_(-1), wakeupfd_(-1), quit_(false)
 {
+    /*
+        1. create epoll instance
+    */
     epollfd_ = epoll_create1(0);
 
     if (epollfd_ < 0)
@@ -15,6 +19,33 @@ EventLoop::EventLoop() : epollfd_(-1), wakeupfd_(-1), quit_(false)
         perror("epoll_create1");
         exit(1);
     }
+
+    /*
+        2. create eventfd
+
+        used for cross-thread wakeup
+    */
+    wakeupfd_ = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+
+    if (wakeupfd_ < 0)
+    {
+        perror("eventfd");
+        exit(1);
+    }
+
+    /*
+        3. create Channel for eventfd
+
+        eventfd is also monitored by epoll
+    */
+    wakeupChannel_ = std::make_unique<Channel>(this, wakeupfd_);
+
+    wakeupChannel_->setReadCallback([this]() { handleWakeup(); });
+
+    /*
+        4. register eventfd into epoll
+    */
+    wakeupChannel_->enableReading();
 }
 
 EventLoop::~EventLoop()
@@ -133,9 +164,14 @@ void EventLoop::loop()
 
 void EventLoop::queueInLoop(Task task)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
 
-    pendingTasks_.push(std::move(task));
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        pendingTasks_.push(std::move(task));
+    }
+
+    wakeup();
 }
 
 void EventLoop::doPendingTasks()
@@ -154,4 +190,34 @@ void EventLoop::doPendingTasks()
 
         tasks.pop();
     }
+}
+
+void EventLoop::wakeup()
+{
+    uint64_t one = 1;
+
+    ssize_t n = write(wakeupfd_, &one, sizeof(one));
+
+    if (n != sizeof(one))
+    {
+        perror("eventfd write");
+    }
+}
+
+void EventLoop::handleWakeup()
+{
+    uint64_t one;
+
+    ssize_t n = read(
+        wakeupfd_,
+        &one,
+        sizeof(one)
+    );
+
+    if(n != sizeof(one))
+    {
+        perror("eventfd read");
+    }
+
+    doPendingTasks();
 }
