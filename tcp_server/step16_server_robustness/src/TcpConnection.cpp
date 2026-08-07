@@ -15,7 +15,8 @@
 
 TcpConnection::TcpConnection(EventLoop* loop, TcpServer* server,
                              ThreadPool* pool, int fd)
-    : loop_(loop), server_(server), threadPool_(pool), fd_(fd)
+    : loop_(loop), server_(server), threadPool_(pool), fd_(fd),
+      state_(ConnectionState::CONNECTED)
 {
 
     channel_ = std::make_unique<Channel>(loop_, fd_);
@@ -25,11 +26,16 @@ TcpConnection::TcpConnection(EventLoop* loop, TcpServer* server,
     channel_->setWriteCallback([this]() { handleWrite(); });
 
     channel_->enableReading();
+
+    state_ = ConnectionState::CONNECTED;
 }
 
 TcpConnection::~TcpConnection()
 {
-    close(fd_);
+    if (fd_ >= 0)
+    {
+        close(fd_);
+    }
 }
 
 int TcpConnection::fd() const
@@ -104,11 +110,14 @@ void TcpConnection::send(const std::string& msg)
     loop_->runInLoop(
         [self, msg]()
         {
+            if (self->state_ != ConnectionState::CONNECTED)
+            {
+                return;
+            }
+
             std::cout << "async send: " << msg << std::endl;
 
             self->writeBuffer_ += msg;
-
-            std::cout << "write buffer: " << self->writeBuffer_ << std::endl;
 
             self->channel_->enableWriting();
         });
@@ -145,7 +154,22 @@ void TcpConnection::handleWrite()
 
 void TcpConnection::handleClose()
 {
+
+    if (state_ == ConnectionState::DISCONNECTED)
+    {
+        return;
+    }
+
+    state_ = ConnectionState::DISCONNECTING;
+
     loop_->removeChannel(channel_.get());
 
     server_->removeConnection(fd_);
+
+    state_ = ConnectionState::DISCONNECTED;
+}
+
+bool TcpConnection::connected() const
+{
+    return state_ == ConnectionState::CONNECTED;
 }

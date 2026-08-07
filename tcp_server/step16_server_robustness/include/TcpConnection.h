@@ -12,6 +12,14 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection>
 {
 
   public:
+    enum class ConnectionState
+    {
+        CONNECTING,
+        CONNECTED,
+        DISCONNECTING,
+        DISCONNECTED
+    };
+
     TcpConnection(EventLoop* loop, TcpServer* server, ThreadPool* pool, int fd);
 
     ~TcpConnection();
@@ -19,6 +27,8 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection>
     int fd() const;
 
     void send(const std::string& msg);
+
+    bool connected() const;
 
   private:
     void handleRead();
@@ -39,4 +49,6 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection>
     std::unique_ptr<Channel> channel_;
 
     std::string writeBuffer_;
+
+    ConnectionState state_;
 };
