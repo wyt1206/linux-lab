@@ -108,7 +108,6 @@ EventLoop
  |
 epoll
 
-
 TcpConnection
 
  |
@@ -123,14 +122,14 @@ Worker Threads
 
 Component description:
 
-| Component     | Description                             |
-| ------------- | --------------------------------------- |
-| EventLoop     | Handles epoll events                    |
-| Channel       | Stores fd events and callbacks          |
-| Acceptor      | Accepts new client connections          |
-| TcpServer     | Creates and manages connections         |
+| Component     | Description                                                       |
+| ------------- | ----------------------------------------------------------------- |
+| EventLoop     | Handles epoll events                                              |
+| Channel       | Stores fd events and callbacks                                    |
+| Acceptor      | Accepts new client connections                                    |
+| TcpServer     | Creates and manages connections                                   |
 | TcpConnection | Handles client connection state, read/write buffer and socket I/O |
-| ThreadPool    | Runs tasks using worker threads         |
+| ThreadPool    | Runs tasks using worker threads                                   |
 
 # How Event Handling Works
 
@@ -211,7 +210,7 @@ Refactored the code structure:
 - Manage connection creation and close
 - Separate read and write event handling
 
-## Reactor Architecture Improvements (Step 15)
+## Reactor Architecture Improvements (Step 15.1)
 
 Improved Reactor internals and lifecycle handling:
 
@@ -219,6 +218,17 @@ Improved Reactor internals and lifecycle handling:
 - Use `EPOLL_CTL_ADD` for new channels and `EPOLL_CTL_MOD` for event changes
 - Make `TcpServer` lifecycle and service startup semantics clearer
 - Ensure the Reactor keeps channel state consistent during accept, read, write, and close
+
+
+## Cross-thread Task Dispatch and Async Response (Step 15.2)
+
+Added thread-safe communication between worker threads and the Reactor event loop:
+
+- Add task queue for cross-thread task scheduling
+- Use `eventfd` wakeup mechanism to notify the EventLoop
+- Implement `queueInLoop()` for submitting tasks from worker threads
+- Execute asynchronous responses inside the Reactor thread
+- Keep socket operations inside the EventLoop thread to avoid unsafe cross-thread access
 
 ## Thread Pool and Concurrency
 

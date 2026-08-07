@@ -52,11 +52,28 @@ void TcpConnection::handleRead()
 
             std::cout << "received: " << message << std::endl;
 
-            send(message);
+            auto self = shared_from_this();
+
+            EventLoop* loop = loop_;
 
             threadPool_->submit(
-                [message]()
-                { std::cout << "processing: " << message << std::endl; });
+                [self, message, loop]()
+                {
+                    /*
+                        Worker thread
+
+                        simulate business logic
+                    */
+                    std::cout << "processing: " << message << std::endl;
+
+                    std::string response = "processed: " + message;
+
+                    /*
+                        back to EventLoop thread
+                    */
+                    loop->queueInLoop([self, response]()
+                                       { self->send(response); });
+                });
         }
         else if (n == 0)
         {
@@ -82,6 +99,8 @@ void TcpConnection::handleRead()
 
 void TcpConnection::send(const std::string& msg)
 {
+    std::cout << "async send: " << msg << std::endl;
+
     writeBuffer_ += msg;
 
     std::cout << "write buffer: " << writeBuffer_ << std::endl;
