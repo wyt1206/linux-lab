@@ -2,7 +2,6 @@
 #include "Metrics.h"
 #include "TcpServer.h"
 #include <signal.h>
-#include <string>
 
 EventLoop* g_loop;
 

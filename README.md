@@ -258,6 +258,16 @@ Added write buffer support:
 - Separate data processing from socket writing
 - Prepare for EPOLLOUT based asynchronous writing
 
+## Runtime Observability and Benchmarking (Step 17)
+
+Added observability and benchmark support for runtime analysis:
+
+- Add `Metrics` counters for active connections, requests, and responses
+- Print runtime metrics through a dedicated metrics snapshot
+- Add a benchmark client executable for generating client-side request workload
+- Support configurable benchmark workload via command-line arguments
+- Enable latency and throughput-oriented testing under concurrent client load
+
 # Future Plans
 
 I plan to continue improving this project:

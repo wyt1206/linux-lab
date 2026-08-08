@@ -8,18 +8,33 @@
 #include <thread>
 #include <vector>
 
-void runClient(int id);
+struct BenchmarkConfig
+{
+    int clients;
+    int requests;
+};
 
-int main()
+void runClient(int id, const BenchmarkConfig& config);
+
+int main(int argc, char* argv[])
 {
 
-    int clients = 10;
+    BenchmarkConfig config;
+
+    config.clients = 10;
+    config.requests = 100;
+
+    if (argc >= 3)
+    {
+        config.clients = std::stoi(argv[1]);
+        config.requests = std::stoi(argv[2]);
+    }
 
     std::vector<std::thread> threads;
 
-    for (int i = 0; i < clients; i++)
+    for (int i = 0; i < config.clients; i++)
     {
-        threads.emplace_back(runClient, i);
+        threads.emplace_back(runClient, i, std::ref(config));
     }
 
     for (auto& t : threads)
@@ -28,33 +43,24 @@ int main()
     }
 }
 
-void runClient(int id)
+void runClient(int id, const BenchmarkConfig& config)
 {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (fd < 0)
-    {
-        perror("socket");
-        return;
-    }
 
     sockaddr_in server{};
 
     server.sin_family = AF_INET;
     server.sin_port = htons(8080);
 
+    connect(fd, (sockaddr*)&server, sizeof(server));
+
     char buffer[4096];
 
-    if (connect(fd, (sockaddr*)&server, sizeof(server)) < 0)
+    for (int i = 0; i < config.requests; i++)
     {
-        perror("connect");
-        close(fd);
-        return;
-    }
 
-    for (int i = 0; i < 100; i++)
-    {
-        std::string msg = "client-" + std::to_string(id);
+        std::string msg =
+            "client-" + std::to_string(id) + "-request-" + std::to_string(i);
 
         send(fd, msg.data(), msg.size(), 0);
 
