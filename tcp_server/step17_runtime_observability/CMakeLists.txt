@@ -1,16 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
 
-
 project(reactor-server)
-
 
 set(CMAKE_CXX_STANDARD 17)
 
-
-
 include_directories(include)
-
-
 
 add_executable(server
 
@@ -27,4 +21,9 @@ add_executable(server
     src/ThreadPool.cpp
 
     src/Metrics.cpp
+)
+
+add_executable(
+    benchmark_client
+    benchmark/benchmark_client.cpp
 )
