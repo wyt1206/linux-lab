@@ -2,14 +2,16 @@
 #include "Metrics.h"
 #include "TcpServer.h"
 #include <signal.h>
+#include <string>
 
 EventLoop* g_loop;
 
 void handleSignal(int)
 {
-    Metrics::instance().print();
-
-    g_loop->quit();
+    if (g_loop)
+    {
+        g_loop->quit();
+    }
 }
 
 int main()
