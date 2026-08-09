@@ -24,6 +24,8 @@ class TcpServer
 
     size_t connectionCount() const;
 
+    ThreadPool* threadPool();
+
   private:
     EventLoop* loop_;
 

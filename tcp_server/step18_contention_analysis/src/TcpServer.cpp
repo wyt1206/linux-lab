@@ -32,6 +32,11 @@ void TcpServer::start()
     std::cout << "TcpServer started" << std::endl;
 }
 
+ThreadPool* TcpServer::threadPool()
+{
+    return threadPool_.get();
+}
+
 void TcpServer::newConnection(int fd)
 {
 

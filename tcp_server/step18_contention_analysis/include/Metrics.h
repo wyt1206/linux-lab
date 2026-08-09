@@ -3,6 +3,8 @@
 #include <atomic>
 #include <cstdint>
 
+class ThreadPool;
+
 class Metrics
 {
 
@@ -17,6 +19,8 @@ class Metrics
 
     void incrementResponses();
 
+    void setThreadPool(ThreadPool* pool);
+
     void print();
 
   private:
@@ -28,4 +32,6 @@ class Metrics
     std::atomic<uint64_t> requests_{0};
 
     std::atomic<uint64_t> responses_{0};
+
+    ThreadPool* threadPool_{nullptr};
 };

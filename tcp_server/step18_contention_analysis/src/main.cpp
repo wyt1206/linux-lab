@@ -24,6 +24,8 @@ int main()
 
     TcpServer server(&loop, 8080);
 
+    Metrics::instance().setThreadPool(server.threadPool());
+
     server.start();
 
     loop.loop();

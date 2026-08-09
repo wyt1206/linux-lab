@@ -1,35 +1,29 @@
 #pragma once
 
+#include <condition_variable>
 #include <functional>
+#include <mutex>
+#include <queue>
 #include <thread>
 #include <vector>
-#include <queue>
-#include <mutex>
-#include <condition_variable>
 
 class ThreadPool
 {
-public:
+  public:
+    using Task = std::function<void()>;
 
-    using Task =
-        std::function<void()>;
-
-    explicit ThreadPool(
-        size_t threadNum
-    );
+    explicit ThreadPool(size_t threadNum);
 
     ~ThreadPool();
 
-    void submit(
-        Task task
-    );
+    void submit(Task task);
 
-private:
+    size_t queueSize() const;
 
+  private:
     void workerLoop();
 
-private:
-
+  private:
     /*
         worker threads
     */
@@ -43,7 +37,7 @@ private:
     /*
         synchronization
     */
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
 
     std::condition_variable condition_;
 

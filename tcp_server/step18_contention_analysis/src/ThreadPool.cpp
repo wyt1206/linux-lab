@@ -92,3 +92,10 @@ void ThreadPool::workerLoop()
         task();
     }
 }
+
+size_t ThreadPool::queueSize() const
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    return tasks_.size();
+}
