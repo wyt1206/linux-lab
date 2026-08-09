@@ -1,12 +1,13 @@
 #pragma once
 
+#include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <functional>
 #include <mutex>
 #include <queue>
 #include <thread>
 #include <vector>
-#include <atomic>
 
 class ThreadPool
 {
@@ -32,10 +33,17 @@ class ThreadPool
     */
     std::vector<std::thread> workers_;
 
+    struct TaskItem
+    {
+        Task task;
+
+        std::chrono::steady_clock::time_point enqueueTime;
+    };
+
     /*
         task queue
     */
-    std::queue<Task> tasks_;
+    std::queue<TaskItem> tasks_;
 
     /*
         synchronization

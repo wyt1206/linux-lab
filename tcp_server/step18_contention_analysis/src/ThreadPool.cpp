@@ -42,11 +42,18 @@ ThreadPool::~ThreadPool()
 void ThreadPool::submit(Task task)
 {
     size_t currentSize;
+
+    TaskItem item;
+
+    item.task = std::move(task);
+
+    item.enqueueTime = std::chrono::steady_clock::now();
+
     {
 
         std::lock_guard<std::mutex> lock(mutex_);
 
-        tasks_.push(std::move(task));
+        tasks_.push(std::move(item));
 
         currentSize = tasks_.size();
     }
@@ -69,37 +76,33 @@ void ThreadPool::workerLoop()
 
     while (true)
     {
-        Task task;
-        {
+        TaskItem item;
 
+        {
             std::unique_lock<std::mutex> lock(mutex_);
 
-            condition_.wait(lock,
-                            [this]() { return stop_ || !tasks_.empty(); });
+            condition_.wait(lock, [this] { return stop_ || !tasks_.empty(); });
 
-            /*
-                shutdown
-
-                no remaining task
-            */
             if (stop_ && tasks_.empty())
             {
                 return;
             }
 
-            task = std::move(tasks_.front());
+            item = std::move(tasks_.front());
 
             tasks_.pop();
         }
 
-        /*
-            execute task
+        auto start = std::chrono::steady_clock::now();
 
-            IMPORTANT:
+        auto queueWait = std::chrono::duration_cast<std::chrono::microseconds>(
+                             start - item.enqueueTime)
+                             .count();
 
-            lock released here
-        */
-        task();
+        if (item.task)
+        {
+            item.task();
+        }
     }
 }
 
