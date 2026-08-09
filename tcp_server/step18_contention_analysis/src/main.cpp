@@ -1,4 +1,5 @@
 #include "EventLoop.h"
+#include "Logger.h"
 #include "Metrics.h"
 #include "TcpServer.h"
 #include <signal.h>
@@ -21,6 +22,8 @@ int main()
     EventLoop loop;
 
     g_loop = &loop;
+
+    Logger::instance().enable(false);
 
     TcpServer server(&loop, 8080);
 
