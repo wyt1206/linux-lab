@@ -1,4 +1,5 @@
 #include "ThreadPool.h"
+#include "Metrics.h"
 
 #include <utility>
 
@@ -99,10 +100,23 @@ void ThreadPool::workerLoop()
                              start - item.enqueueTime)
                              .count();
 
+        Metrics::instance().recordQueueWait(queueWait);
+
+        auto executeStart = std::chrono::steady_clock::now();
+
         if (item.task)
         {
             item.task();
         }
+
+        auto executeEnd = std::chrono::steady_clock::now();
+
+        auto executionTime =
+            std::chrono::duration_cast<std::chrono::microseconds>(executeEnd -
+                                                                  executeStart)
+                .count();
+
+        Metrics::instance().recordExecutionTime(executionTime);
     }
 }
 

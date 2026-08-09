@@ -19,6 +19,10 @@ class Metrics
 
     void incrementResponses();
 
+    void recordQueueWait(uint64_t us);
+
+    void recordExecutionTime(uint64_t us);
+
     void setThreadPool(ThreadPool* pool);
 
     void print();
@@ -32,6 +36,12 @@ class Metrics
     std::atomic<uint64_t> requests_{0};
 
     std::atomic<uint64_t> responses_{0};
+
+    std::atomic<uint64_t> totalQueueWait_{0};
+
+    std::atomic<uint64_t> completedTasks_{0};
+
+    std::atomic<uint64_t> totalExecutionTime_{0};
 
     ThreadPool* threadPool_{nullptr};
 };

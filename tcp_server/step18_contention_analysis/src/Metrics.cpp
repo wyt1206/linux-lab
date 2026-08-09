@@ -35,6 +35,18 @@ void Metrics::setThreadPool(ThreadPool* pool)
     threadPool_ = pool;
 }
 
+void Metrics::recordQueueWait(uint64_t us)
+{
+    totalQueueWait_ += us;
+
+    completedTasks_++;
+}
+
+void Metrics::recordExecutionTime(uint64_t us)
+{
+    totalExecutionTime_ += us;
+}
+
 void Metrics::print()
 {
     std::cout << "\nthreadPool ptr = " << threadPool_ << std::endl;
@@ -49,6 +61,15 @@ void Metrics::print()
         std::cout << "\nThreadPool Queue Current: " << threadPool_->queueSize();
 
         std::cout << "\nThreadPool Queue Max: " << threadPool_->maxQueueSize();
+    }
+
+    if (completedTasks_ > 0)
+    {
+        std::cout << "\nAverage Queue Wait(us): "
+                  << totalQueueWait_.load() / completedTasks_.load();
+
+        std::cout << "\nAverage Execution Time(us): "
+                  << totalExecutionTime_.load() / completedTasks_.load();
     }
 
     std::cout << "\n=====================================\n";
