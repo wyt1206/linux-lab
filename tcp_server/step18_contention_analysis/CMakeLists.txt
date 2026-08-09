@@ -21,6 +21,7 @@ add_executable(server
     src/ThreadPool.cpp
 
     src/Metrics.cpp
+    src/Logger.cpp
 )
 
 add_executable(

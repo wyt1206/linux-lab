@@ -2,6 +2,7 @@
 
 #include "Channel.h"
 #include "EventLoop.h"
+#include "Logger.h"
 #include "Metrics.h"
 #include "TcpServer.h"
 #include "ThreadPool.h"
@@ -90,7 +91,7 @@ void TcpConnection::handleRead()
 
             std::string message(buffer, n);
 
-            std::cout << "received: " << message << std::endl;
+            Logger::instance().log("received: " + message);
 
             auto self = shared_from_this();
 
@@ -100,7 +101,7 @@ void TcpConnection::handleRead()
                     /*
                         worker thread
                     */
-                    std::cout << "processing: " << message << std::endl;
+                    Logger::instance().log("processing: " + message);
 
                     /*
                         Step 18.3:
@@ -160,11 +161,11 @@ void TcpConnection::send(const std::string& msg)
                 return;
             }
 
-            std::cout << "async send: " << msg << std::endl;
+            Logger::instance().log("async send: " + msg);
 
             self->writeBuffer_ += msg;
 
-            std::cout << "write buffer: " << self->writeBuffer_ << std::endl;
+            Logger::instance().log("write buffer: " + self->writeBuffer_);
 
             self->channel_->enableWriting();
         });
@@ -211,7 +212,7 @@ void TcpConnection::handleClose()
 
     state_ = ConnectionState::DISCONNECTING;
 
-    std::cout << "connection closed fd=" << fd_ << std::endl;
+    Logger::instance().log("connection closed fd=" + std::to_string(fd_));
 
     loop_->removeChannel(channel_.get());
 

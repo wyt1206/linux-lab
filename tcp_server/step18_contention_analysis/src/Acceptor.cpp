@@ -2,6 +2,7 @@
 
 #include "Channel.h"
 #include "EventLoop.h"
+#include "Logger.h"
 #include "SocketUtil.h"
 
 #include <arpa/inet.h>
@@ -75,7 +76,7 @@ Acceptor::Acceptor(EventLoop* loop, int port) : loop_(loop), listenfd_(-1)
         exit(1);
     }
 
-    std::cout << "Acceptor listen on port " << port << std::endl;
+    Logger::instance().log("Acceptor listen on port " + std::to_string(port));
 
     /*
         6. create Channel
@@ -151,7 +152,7 @@ void Acceptor::handleRead()
             continue;
         }
 
-        std::cout << "accept client fd=" << clientfd << std::endl;
+        Logger::instance().log("accept client fd=" + std::to_string(clientfd));
 
         /*
             notify TcpServer

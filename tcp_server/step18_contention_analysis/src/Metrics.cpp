@@ -1,4 +1,5 @@
 #include "Metrics.h"
+#include "Logger.h"
 #include "ThreadPool.h"
 
 #include <iostream>
@@ -49,28 +50,35 @@ void Metrics::recordExecutionTime(uint64_t us)
 
 void Metrics::print()
 {
-    std::cout << "\nthreadPool ptr = " << threadPool_ << std::endl;
+    Logger::instance().log(
+        "threadPool ptr = " +
+        std::to_string(reinterpret_cast<uintptr_t>(threadPool_)));
 
-    std::cout << "\n========== Runtime Metrics =========="
-              << "\nConnections: " << connections_.load()
-              << "\nRequests: " << requests_.load()
-              << "\nResponses: " << responses_.load();
+    Logger::instance().log("========== Runtime Metrics =========="
+                           "\nConnections: " +
+                           std::to_string(connections_.load()) +
+                           "\nRequests: " + std::to_string(requests_.load()) +
+                           "\nResponses: " + std::to_string(responses_.load()));
 
     if (threadPool_)
     {
-        std::cout << "\nThreadPool Queue Current: " << threadPool_->queueSize();
+        Logger::instance().log("ThreadPool Queue Current: " +
+                               std::to_string(threadPool_->queueSize()));
 
-        std::cout << "\nThreadPool Queue Max: " << threadPool_->maxQueueSize();
+        Logger::instance().log("ThreadPool Queue Max: " +
+                               std::to_string(threadPool_->maxQueueSize()));
     }
 
     if (completedTasks_ > 0)
     {
-        std::cout << "\nAverage Queue Wait(us): "
-                  << totalQueueWait_.load() / completedTasks_.load();
+        Logger::instance().log(
+            "Average Queue Wait(us): " +
+            std::to_string(totalQueueWait_.load() / completedTasks_.load()));
 
-        std::cout << "\nAverage Execution Time(us): "
-                  << totalExecutionTime_.load() / completedTasks_.load();
+        Logger::instance().log("Average Execution Time(us): " +
+                               std::to_string(totalExecutionTime_.load() /
+                                              completedTasks_.load()));
     }
 
-    std::cout << "\n=====================================\n";
+    Logger::instance().log("=====================================");
 }

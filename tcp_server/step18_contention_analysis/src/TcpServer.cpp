@@ -1,6 +1,7 @@
 #include "TcpServer.h"
 
 #include "Acceptor.h"
+#include "Logger.h"
 #include "Metrics.h"
 #include "TcpConnection.h"
 #include "ThreadPool.h"
@@ -29,7 +30,7 @@ TcpServer::~TcpServer()
 void TcpServer::start()
 {
 
-    std::cout << "TcpServer started" << std::endl;
+    Logger::instance().log("TcpServer started");
 }
 
 ThreadPool* TcpServer::threadPool()
@@ -40,7 +41,7 @@ ThreadPool* TcpServer::threadPool()
 void TcpServer::newConnection(int fd)
 {
 
-    std::cout << "new connection fd=" << fd << std::endl;
+    Logger::instance().log("new connection fd=" + std::to_string(fd));
 
     Metrics::instance().incrementConnections();
 
@@ -70,7 +71,7 @@ void TcpServer::removeConnection(int fd)
 
         connections_.erase(it);
 
-        std::cout << "remove connection fd=" << fd << std::endl;
+        Logger::instance().log("remove connection fd=" + std::to_string(fd));
     }
 }
 
