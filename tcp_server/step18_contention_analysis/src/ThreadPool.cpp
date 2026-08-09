@@ -41,11 +41,21 @@ ThreadPool::~ThreadPool()
 
 void ThreadPool::submit(Task task)
 {
+    size_t currentSize;
     {
 
         std::lock_guard<std::mutex> lock(mutex_);
 
         tasks_.push(std::move(task));
+
+        currentSize = tasks_.size();
+    }
+
+    size_t oldMax = maxQueueSize_.load();
+
+    while (currentSize > oldMax &&
+           !maxQueueSize_.compare_exchange_weak(oldMax, currentSize))
+    {
     }
 
     /*
@@ -98,4 +108,9 @@ size_t ThreadPool::queueSize() const
     std::lock_guard<std::mutex> lock(mutex_);
 
     return tasks_.size();
+}
+
+size_t ThreadPool::maxQueueSize() const
+{
+    return maxQueueSize_.load();
 }

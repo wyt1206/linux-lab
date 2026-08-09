@@ -6,6 +6,7 @@
 #include <queue>
 #include <thread>
 #include <vector>
+#include <atomic>
 
 class ThreadPool
 {
@@ -19,6 +20,8 @@ class ThreadPool
     void submit(Task task);
 
     size_t queueSize() const;
+
+    size_t maxQueueSize() const;
 
   private:
     void workerLoop();
@@ -45,4 +48,6 @@ class ThreadPool
         shutdown flag
     */
     bool stop_;
+
+    std::atomic<size_t> maxQueueSize_{0};
 };

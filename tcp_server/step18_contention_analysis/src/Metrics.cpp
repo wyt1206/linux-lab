@@ -46,7 +46,9 @@ void Metrics::print()
 
     if (threadPool_)
     {
-        std::cout << "\nThreadPool Queue: " << threadPool_->queueSize();
+        std::cout << "\nThreadPool Queue Current: " << threadPool_->queueSize();
+
+        std::cout << "\nThreadPool Queue Max: " << threadPool_->maxQueueSize();
     }
 
     std::cout << "\n=====================================\n";

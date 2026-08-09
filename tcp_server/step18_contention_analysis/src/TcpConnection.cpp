@@ -100,8 +100,20 @@ void TcpConnection::handleRead()
                     /*
                         worker thread
                     */
-
                     std::cout << "processing: " << message << std::endl;
+
+                    /*
+                        Step 18.3:
+                        simulate CPU contention
+
+                        emulate expensive computation
+                    */
+                    volatile uint64_t result = 0;
+
+                    for (int i = 0; i < 50000000; i++)
+                    {
+                        result += i;
+                    }
 
                     std::string response = "processed: " + message;
 
