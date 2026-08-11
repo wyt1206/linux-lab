@@ -123,3 +123,84 @@ Impact:
 
 Reduce unnecessary string data copies
 during asynchronous request processing.
+
+---
+
+# 18.6.4 Benchmark Comparison
+
+## Workload
+
+Clients:
+
+100
+
+Requests/client:
+
+200
+
+
+Total Requests:
+
+20000
+
+
+---
+
+## Before Optimization
+
+Optimization:
+
+- No write buffer pre-allocation
+- Original string copy path
+
+
+Runtime Metrics:
+
+Average Queue Wait(us):
+
+925706
+
+
+Average Execution Time(us):
+
+38685
+
+
+---
+
+## After Optimization
+
+Optimization:
+
+- writeBuffer_.reserve(8192)
+- Move string ownership across async boundaries
+
+
+Runtime Metrics:
+
+Average Queue Wait(us):
+
+884519
+
+
+Average Execution Time(us):
+
+36962
+
+
+---
+
+## Observation
+
+The optimization reduced unnecessary memory operations
+during asynchronous request processing.
+
+Execution time improved slightly after reducing
+string copies and avoiding potential buffer reallocations.
+
+However, overall latency is still mainly affected by
+ThreadPool queue waiting caused by CPU contention workload.
+
+The result shows that allocation optimization improves
+the request processing path, while system-level resource
+contention remains the dominant factor.
