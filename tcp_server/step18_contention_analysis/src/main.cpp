@@ -23,7 +23,7 @@ int main()
 
     g_loop = &loop;
 
-    Logger::instance().enable(false);
+    Logger::instance().enable(true);
 
     TcpServer server(&loop, 8080);
 

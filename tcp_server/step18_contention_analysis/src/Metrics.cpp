@@ -80,5 +80,39 @@ void Metrics::print()
                                               completedTasks_.load()));
     }
 
+    Logger::instance().log("Request Buffers: " +
+                           std::to_string(requestBuffers_.load()));
+
+    Logger::instance().log("Response Buffers: " +
+                           std::to_string(responseBuffers_.load()));
+
+    Logger::instance().log("Write Buffer Appends: " +
+                           std::to_string(writeBufferAppends_.load()));
+
     Logger::instance().log("=====================================");
+}
+
+void Metrics::incrementAllocations()
+{
+    allocations_++;
+}
+
+void Metrics::incrementRequestBuffers()
+{
+    requestBuffers_++;
+}
+
+void Metrics::incrementResponseBuffers()
+{
+    responseBuffers_++;
+}
+
+void Metrics::incrementWriteBufferAppends()
+{
+    writeBufferAppends_++;
+}
+
+uint64_t Metrics::allocations() const
+{
+    return allocations_.load();
 }

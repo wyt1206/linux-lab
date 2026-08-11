@@ -87,7 +87,7 @@ void TcpConnection::handleRead()
 
         if (n > 0)
         {
-            Metrics::instance().incrementRequests();
+            Metrics::instance().incrementRequestBuffers();
 
             std::string message(buffer, n);
 
@@ -115,6 +115,8 @@ void TcpConnection::handleRead()
                     {
                         result += i;
                     }
+
+                    Metrics::instance().incrementResponseBuffers();
 
                     std::string response = "processed: " + message;
 
@@ -162,6 +164,8 @@ void TcpConnection::send(const std::string& msg)
             }
 
             Logger::instance().log("async send: " + msg);
+
+            Metrics::instance().incrementWriteBufferAppends();
 
             self->writeBuffer_ += msg;
 
