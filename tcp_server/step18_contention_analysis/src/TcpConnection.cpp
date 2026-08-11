@@ -18,8 +18,11 @@ TcpConnection::TcpConnection(EventLoop* loop, TcpServer* server,
     : loop_(loop), server_(server), threadPool_(pool), fd_(fd),
       state_(ConnectionState::CONNECTING)
 {
-
     channel_ = std::make_unique<Channel>(loop_, fd_);
+
+    // Step 18.6.3:
+    // reserve write buffer to reduce reallocations
+    writeBuffer_.reserve(8192);
 }
 
 TcpConnection::~TcpConnection()
@@ -96,7 +99,7 @@ void TcpConnection::handleRead()
             auto self = shared_from_this();
 
             threadPool_->submit(
-                [self, message]()
+                [self, message = std::move(message)]()
                 {
                     /*
                         worker thread
@@ -124,8 +127,7 @@ void TcpConnection::handleRead()
                         switch back
                         to EventLoop thread
                     */
-
-                    self->send(response);
+                    self->send(std::move(response));
                 });
         }
         else if (n == 0)
@@ -150,13 +152,13 @@ void TcpConnection::handleRead()
     }
 }
 
-void TcpConnection::send(const std::string& msg)
+void TcpConnection::send(std::string msg)
 {
 
     auto self = shared_from_this();
 
     loop_->runInLoop(
-        [self, msg]()
+        [self, msg = std::move(msg)]()
         {
             if (self->state_ != ConnectionState::CONNECTED)
             {
