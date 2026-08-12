@@ -89,6 +89,9 @@ void Metrics::print()
     Logger::instance().log("Write Buffer Appends: " +
                            std::to_string(writeBufferAppends_.load()));
 
+    Logger::instance().log("Rejected Requests: " +
+                           std::to_string(rejectedRequests_.load()));
+
     Logger::instance().log("=====================================");
 }
 
@@ -110,6 +113,11 @@ void Metrics::incrementResponseBuffers()
 void Metrics::incrementWriteBufferAppends()
 {
     writeBufferAppends_++;
+}
+
+void Metrics::incrementRejectedRequests()
+{
+    rejectedRequests_++;
 }
 
 uint64_t Metrics::allocations() const

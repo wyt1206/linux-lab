@@ -130,12 +130,14 @@ void TcpConnection::handleRead()
                     self->send(std::move(response));
                 });
             if (!accepted)
-
             {
+                Metrics::instance().incrementRejectedRequests();
 
                 Logger::instance().log(
 
                     "ThreadPool queue full, rejecting request");
+
+                self->send("server overloaded");
             }
         }
         else if (n == 0)

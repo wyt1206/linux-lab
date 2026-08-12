@@ -40,7 +40,7 @@ ThreadPool::~ThreadPool()
     }
 }
 
-void ThreadPool::submit(Task task)
+bool ThreadPool::submit(Task task)
 {
     size_t currentSize;
 

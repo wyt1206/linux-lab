@@ -28,7 +28,7 @@ class ThreadPool
     void workerLoop();
 
   private:
-    static constexpr size_t kMaxQueueSize = 100;
+    static constexpr size_t kMaxQueueSize = 10;
     /*
         worker threads
     */

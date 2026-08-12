@@ -35,6 +35,8 @@ class Metrics
 
     void incrementWriteBufferAppends();
 
+    void incrementRejectedRequests();
+
     uint64_t allocations() const;
 
   private:
@@ -60,6 +62,8 @@ class Metrics
     std::atomic<uint64_t> responseBuffers_{0};
 
     std::atomic<uint64_t> writeBufferAppends_{0};
+
+    std::atomic<uint64_t> rejectedRequests_{0};
 
     ThreadPool* threadPool_{nullptr};
 };
