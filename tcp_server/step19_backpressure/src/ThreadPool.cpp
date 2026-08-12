@@ -54,6 +54,11 @@ void ThreadPool::submit(Task task)
 
         std::lock_guard<std::mutex> lock(mutex_);
 
+        if (tasks_.size() >= kMaxQueueSize)
+        {
+            return false;
+        }
+
         tasks_.push(std::move(item));
 
         currentSize = tasks_.size();
@@ -70,6 +75,8 @@ void ThreadPool::submit(Task task)
         notify one worker
     */
     condition_.notify_one();
+
+    return true;
 }
 
 void ThreadPool::workerLoop()

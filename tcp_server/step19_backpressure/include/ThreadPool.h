@@ -18,7 +18,7 @@ class ThreadPool
 
     ~ThreadPool();
 
-    void submit(Task task);
+    bool submit(Task task);
 
     size_t queueSize() const;
 
@@ -28,6 +28,7 @@ class ThreadPool
     void workerLoop();
 
   private:
+    static constexpr size_t kMaxQueueSize = 100;
     /*
         worker threads
     */

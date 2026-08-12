@@ -98,7 +98,7 @@ void TcpConnection::handleRead()
 
             auto self = shared_from_this();
 
-            threadPool_->submit(
+            bool accepted = threadPool_->submit(
                 [self, message = std::move(message)]()
                 {
                     /*
@@ -129,6 +129,14 @@ void TcpConnection::handleRead()
                     */
                     self->send(std::move(response));
                 });
+            if (!accepted)
+
+            {
+
+                Logger::instance().log(
+
+                    "ThreadPool queue full, rejecting request");
+            }
         }
         else if (n == 0)
         {
