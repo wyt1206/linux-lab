@@ -135,36 +135,33 @@ Component description:
 
 ```
 Client sends data
-
         |
         v
-
 EventLoop detects event using epoll
-
         |
         v
-
-Channel triggers callback
-
+Channel triggers read callback
         |
         v
-
 TcpConnection reads data
-
         |
         v
-
-Data is stored in write buffer
-
+Submit task to ThreadPool
         |
         v
-
+Worker thread processes request
+        |
+        v
+Schedule response back to EventLoop
+        |
+        v
+Response is appended to writeBuffer_
+        |
+        v
 EPOLLOUT event triggers write
-
         |
         v
-
-TcpConnection sends data back
+TcpConnection sends response
 ```
 
 # Project Steps
@@ -268,14 +265,31 @@ Added observability and benchmark support for runtime analysis:
 - Support configurable benchmark workload via command-line arguments
 - Enable latency and throughput-oriented testing under concurrent client load
 
+## Benchmark & Performance Analysis (Step 18)
+
+The project provides runtime metrics including:
+
+- Request/response counters
+- ThreadPool queue depth
+- Queue waiting time
+- Task execution time
+- Buffer operation metrics
+
+Performance experiments were conducted to analyze:
+
+1. Workload contention
+2. Latency breakdown
+3. Logging overhead
+4. Allocation and copy overhead
+
 # Future Plans
 
 I plan to continue improving this project:
 
-- Add simple benchmark tests
-- Measure latency and throughput
-- Use Linux perf to understand performance
-- Improve logging
+- Use Linux `perf` to profile CPU and kernel-level behavior
+- Investigate backpressure and overload handling
+- Improve connection lifecycle and shutdown handling
+- Explore further latency optimization
 
 # What I Learned
 
