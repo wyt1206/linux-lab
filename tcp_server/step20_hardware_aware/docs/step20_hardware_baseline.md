@@ -18,7 +18,7 @@ Collected using:
 lscpu
 lscpu -e
 nproc
-````
+```
 
 ## CPU Summary
 
@@ -201,7 +201,7 @@ baseline for subsequent hardware-aware optimization experiments.
 
 ---
 
-# Conclusion
+## Conclusion
 
 Step 20.1 establishes the hardware and performance baseline
 before applying hardware-aware optimizations.
@@ -209,5 +209,83 @@ before applying hardware-aware optimizations.
 The next steps will investigate whether CPU placement, cache
 locality, and thread scheduling can affect server performance.
 
+
+# 7. ThreadPool Worker Placement
+
+## ThreadPool Configuration
+
+The server creates a ThreadPool with four worker threads:
+
+```cpp
+threadPool_ = std::make_unique<ThreadPool>(4);
+````
+
+The current environment exposes ten logical CPUs:
+
+```text
+CPU 0-9
 ```
 
+Therefore, the server consists of one main/EventLoop thread and
+four ThreadPool worker threads.
+
+## Observation Method
+
+Thread placement was observed using:
+
+```bash
+ps -T -p <PID> -o pid,tid,psr,pcpu,comm
+```
+
+CPU affinity was checked using:
+
+```bash
+taskset -pc <PID>
+```
+
+The process is allowed to run on all available CPUs:
+
+```text
+0-9
+```
+
+No explicit CPU affinity is configured.
+
+## Observed Thread Placement
+
+During a CPU-intensive benchmark, the following thread placement
+was observed:
+
+| Thread | Role                  | Observed CPU     | CPU Usage |
+| ------ | --------------------- | ---------------- | --------: |
+| 22379  | EventLoop/main thread | 5 -> 6 -> 2 -> 6 |     ~0.6% |
+| 22380  | ThreadPool worker     | 4                |      ~95% |
+| 22381  | ThreadPool worker     | 0 -> 1 -> 8      |      ~95% |
+| 22382  | ThreadPool worker     | 9                |      ~95% |
+| 22383  | ThreadPool worker     | 3                |      ~95% |
+
+The four worker threads were heavily CPU-bound and were observed
+running on different logical CPUs.
+
+One worker thread (TID 22381) was observed migrating between
+logical CPUs 0, 1, and 8 during the benchmark.
+
+The EventLoop thread also changed its observed CPU placement,
+but its CPU utilization remained low.
+
+## Observation
+
+The current implementation does not explicitly control CPU
+placement.
+
+The Linux scheduler therefore determines where each EventLoop
+and ThreadPool worker thread executes.
+
+Under the current CPU-intensive workload, the scheduler generally
+places the four worker threads on different logical CPUs, while
+the EventLoop thread consumes very little CPU.
+
+One worker was observed to migrate between CPUs during execution.
+
+At this stage, the impact of thread migration and CPU placement
+on performance is not yet determined.
